@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'أكاديمية موعظة ونور',
-  description: 'نظام إدارة أكاديمية موعظة ونور — تحفيظ القرآن الكريم',
+  description: 'حلقات تعليم القرآن أونلاين — نظام إدارة أكاديمية موعظة ونور',
 }
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@300;400;500;700&family=Amiri:ital@0;1&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
         <link
