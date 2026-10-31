@@ -3,8 +3,8 @@ import { cookies } from 'next/headers'
 
 export async function createClient() {
   const cookieStore = await cookies()
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bmemllsjduxlqmwnpfya.supabase.co'
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_LM3NJ51Ab6W1gLnE3fKxcQ_T0KOV0Ar'
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plcynebifuyklfakzjyp.supabase.co'
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_q1Vwrqpk0VzVLKOW0R_8IA_lUNwoTvr'
 
   return createServerClient(url, key, {
     cookies: {

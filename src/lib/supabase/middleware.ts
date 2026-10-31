@@ -4,8 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bmemllsjduxlqmwnpfya.supabase.co'
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_LM3NJ51Ab6W1gLnE3fKxcQ_T0KOV0Ar'
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plcynebifuyklfakzjyp.supabase.co'
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_q1Vwrqpk0VzVLKOW0R_8IA_lUNwoTvr'
 
   const pathname = request.nextUrl.pathname
   const isPublic =
@@ -14,7 +14,16 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname.startsWith('/evaluate') ||
     pathname.startsWith('/student') ||
+    pathname.startsWith('/portal') ||
     pathname.startsWith('/api/student-portal')
+
+  const redirectTo = (path: string) => {
+    if (pathname === path) return null
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = path
+    redirectUrl.search = ''
+    return NextResponse.redirect(redirectUrl)
+  }
 
   try {
     const supabase = createServerClient(url, key, {
@@ -39,10 +48,7 @@ export async function updateSession(request: NextRequest) {
     const { data: { user } } = await Promise.race([userPromise, timeout]) as any
 
     if (!user && !isPublic) {
-      const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/login'
-      redirectUrl.search = ''
-      return NextResponse.redirect(redirectUrl)
+      return redirectTo('/login') || supabaseResponse
     }
 
     if (user && !isPublic) {
@@ -58,11 +64,17 @@ export async function updateSession(request: NextRequest) {
         role = ''
       }
 
+      // بدون role في profiles: نسمح بالوصول ونمنع حلقة إعادة التوجيه
+      if (!role) {
+        return supabaseResponse
+      }
+
       const homeForRole = (r: string) => {
         if (r === 'teacher') return '/teacher'
         if (r === 'supervisor') return '/supervisor'
         if (r === 'parent') return '/parent'
-        return '/admin'
+        if (r === 'admin') return '/admin'
+        return '/portal'
       }
 
       if (pathname.startsWith('/admin')) {
@@ -85,36 +97,29 @@ export async function updateSession(request: NextRequest) {
         } else if (role === 'supervisor' && supervisorAllowed) {
           // ok
         } else {
-          const redirectUrl = request.nextUrl.clone()
-          redirectUrl.pathname = homeForRole(role)
-          redirectUrl.search = ''
-          return NextResponse.redirect(redirectUrl)
+          const dest = homeForRole(role)
+          const r = redirectTo(dest)
+          if (r) return r
         }
       }
 
       if (pathname.startsWith('/teacher')) {
         if (role !== 'teacher' && role !== 'admin') {
-          const redirectUrl = request.nextUrl.clone()
-          redirectUrl.pathname = homeForRole(role)
-          redirectUrl.search = ''
-          return NextResponse.redirect(redirectUrl)
+          const r = redirectTo(homeForRole(role))
+          if (r) return r
         }
       }
 
       if (pathname.startsWith('/supervisor')) {
         if (role !== 'supervisor' && role !== 'admin') {
-          const redirectUrl = request.nextUrl.clone()
-          redirectUrl.pathname = homeForRole(role)
-          redirectUrl.search = ''
-          return NextResponse.redirect(redirectUrl)
+          const r = redirectTo(homeForRole(role))
+          if (r) return r
         }
       }
 
       if (role === 'teacher' && pathname.startsWith('/admin')) {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = '/teacher'
-        redirectUrl.search = ''
-        return NextResponse.redirect(redirectUrl)
+        const r = redirectTo('/teacher')
+        if (r) return r
       }
 
       if (
@@ -126,10 +131,8 @@ export async function updateSession(request: NextRequest) {
           pathname.startsWith('/admin/payroll') ||
           pathname === '/admin')
       ) {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = '/supervisor'
-        redirectUrl.search = ''
-        return NextResponse.redirect(redirectUrl)
+        const r = redirectTo('/supervisor')
+        if (r) return r
       }
     }
   } catch {
