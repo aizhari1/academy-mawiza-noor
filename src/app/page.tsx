@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import { getActiveRecommendations } from '@/app/actions/recommendations'
 import { LandingClient } from '@/components/landing/LandingClient'
-import { RecommendationsSection } from '@/components/landing/RecommendationsSection'
 
 export const metadata = {
   title: 'موعظة ونور | حلقات تعليم القرآن أونلاين للنساء والأطفال',
@@ -10,12 +8,5 @@ export const metadata = {
 
 export default async function LandingPage() {
   const recommendations = await getActiveRecommendations()
-
-  return (
-    <>
-      <LandingClient />
-      <RecommendationsSection items={recommendations} />
-      {/* Contact + Footer are inside LandingClient for interaction */}
-    </>
-  )
+  return <LandingClient recommendations={recommendations} />
 }

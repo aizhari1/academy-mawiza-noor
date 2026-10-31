@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import type { Recommendation } from '@/app/actions/recommendations'
+import { RecommendationsSection } from '@/components/landing/RecommendationsSection'
 
 const WA = 'https://wa.me/201095591415'
 const PHONE = 'tel:+201062510428'
 const FB = 'https://www.facebook.com/Mawizah.academy?locale=ar_AR'
 
-export function LandingClient() {
+export function LandingClient({ recommendations = [] }: { recommendations?: Recommendation[] }) {
   const [soundOn, setSoundOn] = useState(false)
   const [botOpen, setBotOpen] = useState(false)
   const [botMsgs, setBotMsgs] = useState<{ who: 'bot' | 'user'; text: string }[]>([
@@ -104,7 +106,7 @@ export function LandingClient() {
     <div className="landing-root" dir="rtl">
       <style>{`
         .landing-root {
-          --g950:#08291F; --g900:#0B3D2E; --g700:#1F6B4AA; --g600:#27815A; --g500:#2E8B57;
+          --g950:#08291F; --g900:#0B3D2E; --g700:#1F6B4A; --g600:#27815A; --g500:#2E8B57;
           --g200:#CFE8DA; --g100:#E7F3EC; --g50:#F5FAF7; --ink:#173A2C; --line:#D9EAE0;
           --shadow:0 14px 34px -12px rgba(11,61,46,.25); --radius:18px;
           font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
@@ -260,7 +262,6 @@ export function LandingClient() {
         }
       `}</style>
 
-      {/* Top bar */}
       <div className="l-topbar">
         <div className="l-container">
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
@@ -274,7 +275,6 @@ export function LandingClient() {
         </div>
       </div>
 
-      {/* Nav */}
       <header className="l-nav">
         <div className="l-container">
           <div className="l-brand">
@@ -298,7 +298,6 @@ export function LandingClient() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="l-hero">
         <div className="l-container">
           <span className="l-eyebrow" style={{ background: 'rgba(255,255,255,.1)', color: '#CFE8DA', borderColor: 'rgba(255,255,255,.2)', marginBottom: 20 }}>
@@ -324,7 +323,6 @@ export function LandingClient() {
         </div>
       </section>
 
-      {/* Trust */}
       <div className="l-trust">
         <div className="l-container">
           <div className="item">🎓 معلمات ومعلمون متخصصون</div>
@@ -334,7 +332,6 @@ export function LandingClient() {
         </div>
       </div>
 
-      {/* Programs */}
       <section className="l-sec" id="programs">
         <div className="l-container">
           <div className="l-sec-head">
@@ -352,16 +349,13 @@ export function LandingClient() {
                 <div className="icon">{p.icon}</div>
                 <h3>{p.title}</h3>
                 <p style={{ color: '#4d6a5d', fontSize: 15 }}>{p.desc}</p>
-                <ul>
-                  {p.points.map((x) => <li key={x}>✦ {x}</li>)}
-                </ul>
+                <ul>{p.points.map((x) => <li key={x}>✦ {x}</li>)}</ul>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Steps */}
       <section className="l-sec" id="steps" style={{ background: 'var(--g50)' }}>
         <div className="l-container">
           <div className="l-sec-head">
@@ -379,7 +373,6 @@ export function LandingClient() {
         </div>
       </section>
 
-      {/* Packages */}
       <section className="l-sec" id="packages">
         <div className="l-container">
           <div className="l-sec-head">
@@ -411,7 +404,9 @@ export function LandingClient() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* قسم نقتبس منه — من قاعدة البيانات */}
+      <RecommendationsSection items={recommendations} />
+
       <section className="l-sec" style={{ background: 'var(--g50)' }}>
         <div className="l-container">
           <div className="l-sec-head">
@@ -434,7 +429,6 @@ export function LandingClient() {
         </div>
       </section>
 
-      {/* Contact — rendered after recommendations via page order: recommendations is sibling */}
       <section className="l-sec l-contact" id="contact">
         <div className="l-container">
           <div className="l-contact-grid">
@@ -489,11 +483,9 @@ export function LandingClient() {
         </div>
       </footer>
 
-      {/* FABs */}
       <a className="l-fab l-fab-wa" href={WA} target="_blank" rel="noopener" aria-label="واتساب">💬</a>
       <button type="button" className="l-fab l-fab-bot" onClick={() => setBotOpen(true)} aria-label="مساعد">💭</button>
 
-      {/* Chatbot */}
       <div className={`l-bot${botOpen ? ' open' : ''}`}>
         <div className="l-bot-head">
           <div style={{ flex: 1 }}>
