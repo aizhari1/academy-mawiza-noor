@@ -1,3 +1,5 @@
+-- مالية + تقييمات + رواتب إشراف (آمن للإعادة)
+
 CREATE TABLE IF NOT EXISTS finance_ledger (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -37,6 +39,11 @@ CREATE TABLE IF NOT EXISTS supervisor_payroll (
 ALTER TABLE finance_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evaluations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supervisor_payroll ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "auth_all_finance" ON finance_ledger;
+DROP POLICY IF EXISTS "auth_all_evals" ON evaluations;
+DROP POLICY IF EXISTS "anon_insert_evals" ON evaluations;
+DROP POLICY IF EXISTS "auth_all_sup_pay" ON supervisor_payroll;
 
 CREATE POLICY "auth_all_finance" ON finance_ledger FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_all_evals" ON evaluations FOR ALL TO authenticated USING (true) WITH CHECK (true);

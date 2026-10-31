@@ -1,4 +1,4 @@
--- أكاديمية موعظة ونور — Schema أساسي
+-- أكاديمية موعظة ونور — Schema أساسي (آمن للإعادة)
 -- نفّذ هذا في Supabase SQL Editor
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -151,6 +151,18 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schedule_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- إسقاط السياسات إن وُجدت ثم إنشاؤها (آمن للإعادة)
+DROP POLICY IF EXISTS "allow_all_profiles" ON profiles;
+DROP POLICY IF EXISTS "allow_all_teachers" ON teachers;
+DROP POLICY IF EXISTS "allow_all_students" ON students;
+DROP POLICY IF EXISTS "allow_all_packages" ON packages;
+DROP POLICY IF EXISTS "allow_all_attendance" ON attendance;
+DROP POLICY IF EXISTS "allow_all_payments" ON payments;
+DROP POLICY IF EXISTS "allow_all_schedule" ON schedule_entries;
+DROP POLICY IF EXISTS "allow_all_activity" ON activity_log;
+DROP POLICY IF EXISTS "allow_all_settings" ON settings;
+DROP POLICY IF EXISTS "anon_read_packages" ON packages;
 
 CREATE POLICY "allow_all_profiles" ON profiles FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_teachers" ON teachers FOR ALL TO authenticated USING (true) WITH CHECK (true);
