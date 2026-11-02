@@ -12,7 +12,6 @@ export function methodLabel(method: string | null | undefined): string {
   if (!method) return '—'
   const found = PAYMENT_METHODS.find((m) => m.id === method || m.label === method)
   if (found) return found.label
-  // تطبيع أسماء قديمة
   const n = String(method).toLowerCase()
   if (n.includes('insta') || n.includes('انستا')) return 'إنستا باي'
   if (n.includes('vodafone') || n.includes('فودافون')) return 'فودافون كاش'
