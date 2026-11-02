@@ -9,7 +9,6 @@ export default async function AdminDashboard() {
 
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
-  // شهر العرض: أكتوبر 2026 (حسب طلب الإدارة)
   const monthStart = '2026-10-01'
   const monthEnd = '2026-10-31'
 
@@ -35,29 +34,36 @@ export default async function AdminDashboard() {
 
   const menu = [
     { href: '/admin/monthly', icon: 'calendar_view_month', title: 'الملخص الشهري', desc: 'دخل · صرف · حصص · تقييمات', color: '#00513c' },
+    { href: '/admin/sessions-detail', icon: 'list_alt', title: 'تفاصيل الحصص', desc: 'لكل معلم · طلاب · سعر ومدة', color: '#00513c' },
+    { href: '/admin/payments', icon: 'credit_card', title: 'المدفوعات', desc: 'إنستا · فودافون · بنكي', color: '#755b1b' },
+    { href: '/admin/activity', icon: 'history', title: 'سجل النشاط', desc: 'كل التغييرات في تايم لاين', color: '#3d665a' },
+    { href: '/admin/edit-session', icon: 'edit_note', title: 'تعديل رقم الحصة', desc: 'آخر حصة لأي طالب', color: '#176b52' },
+    { href: '/admin/trials', icon: 'science', title: 'الحصص التجريبية', desc: 'طلاب محتملون ومتابعة', color: '#176b52' },
+    { href: '/admin/teacher-absences', icon: 'event_busy', title: 'غيابات المعلمين', desc: 'المسجّلة من الإشراف', color: '#b45309' },
     { href: '/admin/analytics', icon: 'bar_chart', title: 'تحليلات الباقات', desc: 'أكثر وأقل باقة · نسب', color: '#176b52' },
     { href: '/admin/notes', icon: 'sticky_note_2', title: 'الملاحظات', desc: 'ملاحظات الإدارة والإشراف', color: '#3d665a' },
     { href: '/admin/chat', icon: 'chat', title: 'شات المعلمين', desc: 'محادثة إدارة ↔ معلم', color: '#176b52' },
     { href: '/admin/students', icon: 'groups', title: 'إدارة شؤون الطلاب', desc: 'سجلات المتابعة', color: '#176b52' },
     { href: '/admin/students/new', icon: 'person_add', title: 'طالب جديد', desc: 'تسجيل واشتراك', color: '#176b52' },
     { href: '/admin/reports', icon: 'analytics', title: 'التقارير', desc: 'ملخص أكتوبر', color: '#176b52' },
-    { href: '/admin/evaluations', icon: 'rate_review', title: 'التقييمات', desc: 'أولياء + إدارة', color: '#c5a45d' },
-    { href: '/admin/teacher-eval', icon: 'star', title: 'تقييم المعلمين', desc: 'تقييم الإدارة لكل معلم', color: '#c5a45d' },
-    { href: '/admin/schedule', icon: 'event', title: 'الحضور والتحضير', desc: 'أرشيف أكتوبر', color: '#3d665a' },
-    { href: '/admin/fixed-schedule', icon: 'calendar_month', title: 'المواعيد الثابتة', desc: 'جدول + روابط Zoom', color: '#176b52' },
-    { href: '/admin/families', icon: 'family_restroom', title: 'العائلات (الإخوة)', desc: 'تجميع بالهاتف', color: '#3d665a' },
-    { href: '/admin/supervisor-eval', icon: 'military_tech', title: 'تقييم الإشراف', desc: 'نقاط شهرية', color: '#c5a45d' },
-    { href: '/admin/finance', icon: 'receipt_long', title: 'متأخرات وتذكير', desc: 'المستحقات', color: '#c74747' },
-    { href: '/admin/cashbox', icon: 'account_balance', title: 'الصندوق المالي', desc: 'إيرادات ومصروفات', color: '#176b52' },
+    { href: '/admin/evaluations', icon: 'rate_review', title: 'التقييمات', desc: 'أولياء + إدارة', color: '#176b52' },
+    { href: '/admin/finance', icon: 'payments', title: 'التذكير المالي', desc: 'مستحقات واشتراكات', color: '#755b1b' },
     { href: '/admin/payroll', icon: 'account_balance_wallet', title: 'مسير الرواتب', desc: 'حصص × 25', color: '#755b1b' },
-    { href: '/admin/supervisors', icon: 'supervisor_account', title: 'رواتب الإشراف', desc: 'مدفوع ومتبقي', color: '#755b1b' },
-    { href: '/admin/students?status=تجريبي', icon: 'how_to_reg', title: 'حصص تجريبية', desc: 'محتملون', color: '#3d665a' },
-    { href: '/admin/students?status=موقوف', icon: 'pause_circle', title: 'موقوفة مؤقتاً', desc: 'متوقفين', color: '#d49a35' },
+    { href: '/admin/cashbox', icon: 'savings', title: 'الصندوق', desc: 'دخل وصرف', color: '#176b52' },
+    { href: '/admin/schedule', icon: 'calendar_month', title: 'الجدول', desc: 'مواعيد', color: '#3d665a' },
+    { href: '/admin/fixed-schedule', icon: 'event_repeat', title: 'المواعيد الثابتة', desc: 'جدول ثابت', color: '#3d665a' },
+    { href: '/admin/families', icon: 'family_restroom', title: 'العائلات', desc: 'أولياء', color: '#176b52' },
+    { href: '/admin/supervisors', icon: 'supervisor_account', title: 'المشرفون', desc: 'إدارة', color: '#00513c' },
+    { href: '/admin/teacher-eval', icon: 'star', title: 'تقييم المعلمين', desc: 'من الإدارة', color: '#755b1b' },
+    { href: '/admin/supervisor-eval', icon: 'verified', title: 'تقييم الإشراف', desc: 'من الإدارة', color: '#755b1b' },
+    { href: '/admin/subscriptions-log', icon: 'receipt_long', title: 'سجل الاشتراكات', desc: 'مدفوعات', color: '#3d665a' },
+    { href: '/admin/students?status=موقوف', icon: 'pause_circle', title: 'المتوقفين مؤقتًا', desc: 'للتواصل السريع', color: '#b45309' },
     { href: '/admin/students?status=منسحب', icon: 'person_off', title: 'المنسحبين', desc: 'أرشيف', color: '#6f7974' },
     { href: '/evaluate', icon: 'family_restroom', title: 'فورم أولياء الأمور', desc: 'بدون دخول', color: '#176b52' },
     { href: '/student', icon: 'school', title: 'بوابة الطالب', desc: 'مواعيد ومستحق بالكود', color: '#176b52' },
     { href: '/admin/users', icon: 'manage_accounts', title: 'إدارة المستخدمين', desc: 'أدوار', color: '#00513c' },
     { href: '/admin/packages', icon: 'inventory_2', title: 'باقات الاشتراك', desc: 'تعريف', color: '#3d665a' },
+    { href: '/admin/recommendations', icon: 'auto_stories', title: 'ترشيحات الموقع', desc: 'كتب · فيديوهات · دورات', color: '#176b52' },
     { href: '/teacher/session', icon: 'mic', title: 'غرفة التسميع', desc: 'حضور + تقييم الحصة', color: '#176b52' },
     { href: '/admin/more', icon: 'settings', title: 'المزيد', desc: 'خروج', color: '#6f7974' },
   ]
@@ -98,47 +104,37 @@ export default async function AdminDashboard() {
 
       <div className="px-4 mb-4">
         <div className="card p-4">
-          <p className="text-[13px] font-bold mb-2">لمحة مالية — أكتوبر 2026</p>
-          <div className="grid grid-cols-2 gap-2 text-[13px]">
-            <div>
-              <span style={{ color: '#6f7974' }}>قبضنا (أكتوبر)</span>
-              <p className="font-bold text-[18px]" style={{ color: '#176b52' }}>{collected.toLocaleString('ar-EG')}</p>
-              <p className="text-[10px]" style={{ color: '#6f7974' }}>{payments?.length ?? 0} دفعة</p>
-            </div>
-            <div>
-              <span style={{ color: '#6f7974' }}>مستحقات مفتوحة</span>
-              <p className="font-bold text-[18px]" style={{ color: '#ba1a1a' }}>{dueTotal.toLocaleString('ar-EG')}</p>
-              <p className="text-[10px]" style={{ color: '#6f7974' }}>{dueCount} طالب</p>
-            </div>
-            <div><span style={{ color: '#6f7974' }}>منسحب</span><p className="font-bold">{withdrawn ?? 0}</p></div>
+          <p className="text-[12px] mb-2" style={{ color: '#6f7974' }}>أكتوبر 2026 — نظرة سريعة</p>
+          <div className="grid grid-cols-2 gap-3 text-[13px]">
+            <div><span style={{ color: '#6f7974' }}>محصّل: </span><b style={{ color: '#176b52' }}>{collected.toLocaleString('ar-EG')} ج</b></div>
+            <div><span style={{ color: '#6f7974' }}>مستحق: </span><b style={{ color: '#b45309' }}>{dueTotal.toLocaleString('ar-EG')} ج ({dueCount})</b></div>
+            <div><span style={{ color: '#6f7974' }}>منسحب: </span><b>{withdrawn ?? 0}</b></div>
             <div><Link href="/admin/monthly?month=2026-10" style={{ color: '#176b52' }} className="font-bold">الملخص الشهري ←</Link></div>
           </div>
         </div>
       </div>
 
-      <div className="px-4">
-        <div className="grid grid-cols-2 gap-2.5">
-          {menu.map((m) => (
-            <Link key={m.href + m.title} href={m.href} className="card p-3.5 flex flex-col gap-1 min-h-[92px]">
-              <span className="material-symbols-outlined text-[22px]" style={{ color: m.color }}>{m.icon}</span>
-              <span className="text-[13px] font-bold">{m.title}</span>
-              <span className="text-[11px]" style={{ color: '#6f7974' }}>{m.desc}</span>
-            </Link>
-          ))}
-        </div>
+      <div className="px-4 grid grid-cols-2 gap-2.5 mb-6">
+        {menu.map((m) => (
+          <Link key={m.href + m.title} href={m.href} className="card p-3.5 flex flex-col gap-1.5 active:scale-[0.98] transition">
+            <span className="material-symbols-outlined text-[22px]" style={{ color: m.color }}>{m.icon}</span>
+            <p className="text-[13px] font-bold" style={{ color: '#1a1c1b' }}>{m.title}</p>
+            <p className="text-[10px]" style={{ color: '#6f7974' }}>{m.desc}</p>
+          </Link>
+        ))}
       </div>
 
-      <nav className="bottom-nav">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2 max-w-lg mx-auto" style={{ borderColor: '#cde8dc' }}>
         {[
-          { href: '/admin', icon: 'home', label: 'الرئيسية', active: true },
-          { href: '/admin/chat', icon: 'chat', label: 'شات' },
+          { href: '/admin', icon: 'home', label: 'الرئيسية' },
           { href: '/admin/monthly?month=2026-10', icon: 'calendar_view_month', label: 'ملخص' },
-          { href: '/admin/analytics', icon: 'bar_chart', label: 'تحليلات' },
-          { href: '/admin/students', icon: 'groups', label: 'الطلاب' },
-        ].map((n: any) => (
-          <Link key={n.label} href={n.href} className={n.active ? 'active' : ''}>
-            <span className="material-symbols-outlined text-[22px]">{n.icon}</span>
-            {n.label}
+          { href: '/admin/sessions-detail', icon: 'list_alt', label: 'حصص' },
+          { href: '/admin/payments', icon: 'credit_card', label: 'دفع' },
+          { href: '/admin/more', icon: 'more_horiz', label: 'المزيد' },
+        ].map((i) => (
+          <Link key={i.href} href={i.href} className="flex flex-col items-center gap-0.5 px-2">
+            <span className="material-symbols-outlined text-[22px]" style={{ color: '#176b52' }}>{i.icon}</span>
+            <span className="text-[10px]" style={{ color: '#3f4944' }}>{i.label}</span>
           </Link>
         ))}
       </nav>
