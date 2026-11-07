@@ -3,51 +3,50 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeMethod } from '@/lib/payment-methods'
+import { applyPayment, requireFinanceRole } from '@/lib/payments-core'
+import { uploadPaymentReceipt } from '@/lib/payment-receipt'
 
 export async function recordPayment(formData: FormData) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مسجل' }
 
   const studentId = String(formData.get('student_id') || '')
-  const amount = Number(formData.get('amount') || 0)
-  const method = normalizeMethod(String(formData.get('method') || ''))
-  const paymentDate = String(formData.get('payment_date') || new Date().toISOString().slice(0, 10))
-  const notes = String(formData.get('notes') || '')
+  const file = formData.get('receipt')
+  const receiptFile = file instanceof File && file.size > 0 ? file : null
+  const prepaidMonths = Number(formData.get('prepaid_months') || 0)
 
-  if (!studentId || amount <= 0) return { error: 'بيانات ناقصة' }
-
-  const { error } = await supabase.from('payments').insert({
-    student_id: studentId,
-    amount,
-    currency: 'EGP',
-    status: 'مدفوع',
-    payment_date: paymentDate,
-    method,
-    notes: notes || null,
-  })
-  if (error) return { error: error.message }
-
-  const { data: st } = await supabase.from('students').select('amount_due').eq('id', studentId).single()
-  if (st) {
-    const next = Math.max(0, Number(st.amount_due || 0) - amount)
-    await supabase.from('students').update({ amount_due: next }).eq('id', studentId)
+  let receiptUrl: string | null = null
+  if (receiptFile && studentId) {
+    const up = await uploadPaymentReceipt(supabase, receiptFile, studentId)
+    if (up.url) receiptUrl = up.url
   }
+
+  const res = await applyPayment(supabase, {
+    student_id: studentId,
+    amount: Number(formData.get('amount') || 0),
+    currency: 'EGP',
+    method: String(formData.get('method') || ''),
+    notes: String(formData.get('notes') || '') || null,
+    payment_date: String(formData.get('payment_date') || '') || null,
+    idempotency_key: String(formData.get('idempotency_key') || '') || null,
+    receipt_url: receiptUrl,
+    prepaid_months: prepaidMonths,
+    source: 'admin',
+  })
+  if (!res.success) return { error: res.error }
 
   revalidatePath('/admin/payments')
   revalidatePath('/admin/finance')
   revalidatePath('/admin/subscriptions-log')
-  return { ok: true }
+  revalidatePath('/admin')
+  revalidatePath('/supervisor')
+  revalidatePath('/admin/monthly')
+  return { ok: true, prepaid_until: res.prepaid_until }
 }
 
 export async function updatePaymentMethod(formData: FormData) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مسجل' }
+  const auth = await requireFinanceRole(supabase)
+  if (!auth.ok) return { error: auth.error }
 
   const id = String(formData.get('id') || '')
   const method = normalizeMethod(String(formData.get('method') || ''))
