@@ -10,7 +10,7 @@ const EXT_OK = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm', 'mov', 'm4v'
 function refresh(courseId?: string) {
   revalidatePath('/')
   revalidatePath('/admin/courses')
-  if (course<id>) revalidatePath(`/admin/courses/${courseId}`)
+  if (courseId) revalidatePath(`/admin/courses/${courseId}`)
   revalidatePath('/student')
 }
 
@@ -20,6 +20,7 @@ export async function createUploadUrl(bucket: 'landing-media' | 'course-media', 
   if (bucket !== 'landing-media' && bucket !== 'course-media') return { error: 'bucket غير صالح' }
   const ext = (filename.split('.').pop() || '').toLowerCase()
   if (!EXT_OK.includes(ext)) return { error: 'نوع الملف غير مدعوم' }
+
   const sb = serviceClient()
   const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`
   const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path)
@@ -32,9 +33,11 @@ export async function saveCourse(formData: FormData) {
   const auth = await requireAdmin()
   if (!auth.ok) return { error: auth.error }
   const sb = serviceClient()
+
   const id = String(formData.get('id') || '')
   const title = String(formData.get('title') || '').trim()
   if (!title) return { error: 'اسم الكورس مطلوب' }
+
   const row = {
     title,
     short_desc: String(formData.get('short_desc') || '').trim() || null,
@@ -46,6 +49,7 @@ export async function saveCourse(formData: FormData) {
     sort_order: Number(formData.get('sort_order') || 0) || 0,
     updated_at: new Date().toISOString(),
   }
+
   if (id) {
     if (!UUID.test(id)) return { error: 'معرّف غير صالح' }
     const { error } = await sb.from('courses').update(row).eq('id', id)
@@ -53,6 +57,7 @@ export async function saveCourse(formData: FormData) {
     refresh(id)
     return { ok: true, id }
   }
+
   const slug = `${slugify(title)}-${Math.random().toString(36).slice(2, 6)}`
   const { data, error } = await sb.from('courses').insert({ ...row, slug }).select('id').single()
   if (error) return { error: error.message }
@@ -98,6 +103,7 @@ export async function addLesson(input: {
   const title = (input.title || '').trim()
   if (!title) return { error: 'عنوان الدرس مطلوب' }
   if (input.kind === 'link' ? !input.external_url : !input.storage_path) return { error: 'ارفع الملف أو اكتب الرابط' }
+
   const sb = serviceClient()
   const { data: last } = await sb.from('course_lessons').select('position').eq('course_id', input.course_id).order('position', { ascending: false }).limit(1)
   const position = (last?.[0]?.position ?? 0) + 1
@@ -150,7 +156,7 @@ export async function setEnrollmentStatus(id: string, courseId: string, status: 
   if (!UUID.test(id)) return { error: 'معرّف غير صالح' }
   const patch: Record<string, unknown> = { status }
   if (status === 'active') { patch.activated_at = new Date().toISOString(); patch.activated_by = auth.userId }
-  const { error } = await serviceClient().from('course_enrollments').update(patch).eq('id', id)
+  const { error } = await serviceClient().from('course_enrollments').update(patchpatch).eq('id', id)
   if (error) return { error: error.message }
   refresh(courseId)
   return { ok: true }
@@ -185,11 +191,11 @@ export async function enrollStudentByCode(courseId: string, code: string) {
 
 export async function linkGuestToStudent(enrollmentId: string, courseId: string, code: string) {
   const auth = await requireAdmin()
-  if (!auth.ok) return { error: auth ex.ror }
+  if (!auth.ok) return { error: auth.error }
   const sb = serviceClient()
   const { data: st } = await sb.from('students').select('id').ilike('code', code.trim()).maybeSingle()
   if (!st) return { error: 'كود الطالب غير موجود' }
-  const { error } = await sb.from('course_enrollments').update({ student_id: st.id }).eq<id>(enrollmentId)
+  const { error } = await sb.from('course_enrollments').update({ student_id: st.id }).eq('id', enrollmentId)
   if (error) return { error: error.code === '23505' ? 'الطالب مشترك بالفعل في الكورس' : error.message }
   refresh(courseId)
   return { ok: true }
