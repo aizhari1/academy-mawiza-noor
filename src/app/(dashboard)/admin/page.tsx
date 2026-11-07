@@ -1,39 +1,56 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ensureMonthArchived } from '@/app/actions/month-archive'
+import { monthLabelAr } from '@/lib/dues'
+import { getDuesSummary } from '@/lib/dues-engine'
+import FeatureMenuGrid from '@/components/FeatureMenuGrid'
 
-export default async function AdminDashboard() {
+export const dynamic = 'force-dynamic'
+
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>
+}) {
+  const sp = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  await ensureMonthArchived()
 
-  const monthStart = '2026-10-01'
-  const monthEnd = '2026-10-31'
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
   const [
     { count: active },
     { count: paused },
     { count: teachers },
     { count: withdrawn },
-    { data: payments },
-    { data: dues },
+    summary,
   ] = await Promise.all([
     supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'نشط'),
     supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'موقوف'),
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'منسحب'),
-    supabase.from('payments').select('amount, payment_date').gte('payment_date', monthStart).lte('payment_date', monthEnd).limit(1000),
-    supabase.from('students').select('amount_due').gt('amount_due', 0),
+    getDuesSummary(supabase, sp.month),
   ])
 
-  const collected = (payments ?? []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0)
-  const dueTotal = (dues ?? []).reduce((s: number, d: any) => s + Number(d.amount_due || 0), 0)
-  const dueCount = dues?.length ?? 0
+  const monthKey = summary.monthKey
+  const monthLabel = monthLabelAr(monthKey)
+  const collected = summary.collected
+  const dueTotal = summary.dueTotal
+  const dueCount = summary.dueCount
 
   const menu = [
-    { href: '/admin/monthly', icon: 'calendar_view_month', title: 'الملخص الشهري', desc: 'دخل · صرف · حصص · تقييمات', color: '#00513c' },
+    { href: '/admin/today', icon: 'today', title: 'جدول اليوم', desc: 'حصص النهارده عند كل المعلمين', color: '#176b52' },
+    { href: '/admin/cumulative', icon: 'leaderboard', title: 'التقرير التراكمي', desc: 'ترتيب المعلمين بالدرجة المركبة', color: '#176b52' },
+    { href: '/admin/courses', icon: 'school', title: 'الكورسات', desc: 'فيديوهات · صور · اشتراكات · تفعيل', color: '#755b1b' },
+    { href: '/admin/landing', icon: 'web', title: 'اللاندنج بيدج', desc: 'تعديل الصفحة الرئيسية للموقع', color: '#755b1b' },
+    { href: '/admin/recommendations', icon: 'auto_stories', title: 'ترشيحات الموقع', desc: 'كتب · فيديوهات · دورات', color: '#176b52' },
+    { href: `/admin/monthly?month=${monthKey}`, icon: 'calendar_view_month', title: 'الملخص الشهري', desc: 'دخل · صرف · حصص · تقييمات', color: '#00513c' },
     { href: '/admin/sessions-detail', icon: 'list_alt', title: 'تفاصيل الحصص', desc: 'لكل معلم · طلاب · سعر ومدة', color: '#00513c' },
     { href: '/admin/payments', icon: 'credit_card', title: 'المدفوعات', desc: 'إنستا · فودافون · بنكي', color: '#755b1b' },
     { href: '/admin/activity', icon: 'history', title: 'سجل النشاط', desc: 'كل التغييرات في تايم لاين', color: '#3d665a' },
@@ -45,10 +62,10 @@ export default async function AdminDashboard() {
     { href: '/admin/chat', icon: 'chat', title: 'شات المعلمين', desc: 'محادثة إدارة ↔ معلم', color: '#176b52' },
     { href: '/admin/students', icon: 'groups', title: 'إدارة شؤون الطلاب', desc: 'سجلات المتابعة', color: '#176b52' },
     { href: '/admin/students/new', icon: 'person_add', title: 'طالب جديد', desc: 'تسجيل واشتراك', color: '#176b52' },
-    { href: '/admin/reports', icon: 'analytics', title: 'التقارير', desc: 'ملخص أكتوبر', color: '#176b52' },
+    { href: '/admin/reports', icon: 'analytics', title: 'التقارير', desc: 'ملخص شهري', color: '#176b52' },
     { href: '/admin/evaluations', icon: 'rate_review', title: 'التقييمات', desc: 'أولياء + إدارة', color: '#176b52' },
     { href: '/admin/finance', icon: 'payments', title: 'التذكير المالي', desc: 'مستحقات واشتراكات', color: '#755b1b' },
-    { href: '/admin/payroll', icon: 'account_balance_wallet', title: 'مسير الرواتب', desc: 'حصص × 25', color: '#755b1b' },
+    { href: '/admin/payroll', icon: 'account_balance_wallet', title: 'مسير الرواتب', desc: 'حصص × سعر الطالب', color: '#755b1b' },
     { href: '/admin/cashbox', icon: 'savings', title: 'الصندوق', desc: 'دخل وصرف', color: '#176b52' },
     { href: '/admin/schedule', icon: 'calendar_month', title: 'الجدول', desc: 'مواعيد', color: '#3d665a' },
     { href: '/admin/fixed-schedule', icon: 'event_repeat', title: 'المواعيد الثابتة', desc: 'جدول ثابت', color: '#3d665a' },
@@ -57,15 +74,14 @@ export default async function AdminDashboard() {
     { href: '/admin/teacher-eval', icon: 'star', title: 'تقييم المعلمين', desc: 'من الإدارة', color: '#755b1b' },
     { href: '/admin/supervisor-eval', icon: 'verified', title: 'تقييم الإشراف', desc: 'من الإدارة', color: '#755b1b' },
     { href: '/admin/subscriptions-log', icon: 'receipt_long', title: 'سجل الاشتراكات', desc: 'مدفوعات', color: '#3d665a' },
-    { href: '/admin/students?status=موقوف', icon: 'pause_circle', title: 'المتوقفين مؤقتًا', desc: 'للتواصل السريع', color: '#b45309' },
-    { href: '/admin/students?status=منسحب', icon: 'person_off', title: 'المنسحبين', desc: 'أرشيف', color: '#6f7974' },
+    { href: '/admin/students?status=%D9%85%D9%88%D9%82%D9%88%D9%81', icon: 'pause_circle', title: 'المتوقفين مؤقتًا', desc: 'للتواصل السريع', color: '#b45309' },
+    { href: '/admin/students?status=%D9%85%D9%86%D8%B3%D8%AD%D8%A8', icon: 'person_off', title: 'المنسحبين', desc: 'أرشيف', color: '#6f7974' },
     { href: '/evaluate', icon: 'family_restroom', title: 'فورم أولياء الأمور', desc: 'بدون دخول', color: '#176b52' },
     { href: '/student', icon: 'school', title: 'بوابة الطالب', desc: 'مواعيد ومستحق بالكود', color: '#176b52' },
     { href: '/admin/users', icon: 'manage_accounts', title: 'إدارة المستخدمين', desc: 'أدوار', color: '#00513c' },
     { href: '/admin/packages', icon: 'inventory_2', title: 'باقات الاشتراك', desc: 'تعريف', color: '#3d665a' },
-    { href: '/admin/recommendations', icon: 'auto_stories', title: 'ترشيحات الموقع', desc: 'كتب · فيديوهات · دورات', color: '#176b52' },
     { href: '/teacher/session', icon: 'mic', title: 'غرفة التسميع', desc: 'حضور + تقييم الحصة', color: '#176b52' },
-    { href: '/admin/more', icon: 'settings', title: 'المزيد', desc: 'خروج', color: '#6f7974' },
+    { href: '/admin/more', icon: 'settings', title: 'المزيد', desc: 'خروج · المميزات', color: '#6f7974' },
   ]
 
   return (
@@ -73,7 +89,9 @@ export default async function AdminDashboard() {
       <header className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: '#176b52' }}>
-            <span className="material-symbols-outlined text-white text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>menu_book</span>
+            <span className="material-symbols-outlined text-white text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              menu_book
+            </span>
           </div>
           <div>
             <p className="text-[11px]" style={{ color: '#6f7974' }}>الإدارة</p>
@@ -104,35 +122,33 @@ export default async function AdminDashboard() {
 
       <div className="px-4 mb-4">
         <div className="card p-4">
-          <p className="text-[12px] mb-2" style={{ color: '#6f7974' }}>أكتوبر 2026 — نظرة سريعة</p>
+          <p className="text-[12px] mb-2" style={{ color: '#6f7974' }}>{monthLabel} — نظرة سريعة</p>
           <div className="grid grid-cols-2 gap-3 text-[13px]">
             <div><span style={{ color: '#6f7974' }}>محصّل: </span><b style={{ color: '#176b52' }}>{collected.toLocaleString('ar-EG')} ج</b></div>
             <div><span style={{ color: '#6f7974' }}>مستحق: </span><b style={{ color: '#b45309' }}>{dueTotal.toLocaleString('ar-EG')} ج ({dueCount})</b></div>
             <div><span style={{ color: '#6f7974' }}>منسحب: </span><b>{withdrawn ?? 0}</b></div>
-            <div><Link href="/admin/monthly?month=2026-10" style={{ color: '#176b52' }} className="font-bold">الملخص الشهري ←</Link></div>
+            <div><Link href={`/admin/monthly?month=${monthKey}`} style={{ color: '#176b52' }} className="font-bold">الملخص الشهري ←</Link></div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 grid grid-cols-2 gap-2.5 mb-6">
-        {menu.map((m) => (
-          <Link key={m.href + m.title} href={m.href} className="card p-3.5 flex flex-col gap-1.5 active:scale-[0.98] transition">
-            <span className="material-symbols-outlined text-[22px]" style={{ color: m.color }}>{m.icon}</span>
-            <p className="text-[13px] font-bold" style={{ color: '#1a1c1b' }}>{m.title}</p>
-            <p className="text-[10px]" style={{ color: '#6f7974' }}>{m.desc}</p>
-          </Link>
-        ))}
+      <div className="px-4 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[12px] font-semibold" style={{ color: '#3f4944' }}>المميزات</p>
+          <Link href="/admin/features" className="text-[11px] font-bold" style={{ color: '#176b52' }}>اختيار الظاهر ←</Link>
+        </div>
+        <FeatureMenuGrid role="admin" items={menu} />
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2 max-w-lg mx-auto" style={{ borderColor: '#cde8dc' }}>
         {[
           { href: '/admin', icon: 'home', label: 'الرئيسية' },
-          { href: '/admin/monthly?month=2026-10', icon: 'calendar_view_month', label: 'ملخص' },
+          { href: `/admin/monthly?month=${monthKey}`, icon: 'calendar_view_month', label: 'ملخص' },
           { href: '/admin/sessions-detail', icon: 'list_alt', label: 'حصص' },
           { href: '/admin/payments', icon: 'credit_card', label: 'دفع' },
           { href: '/admin/more', icon: 'more_horiz', label: 'المزيد' },
         ].map((i) => (
-          <Link key={i.href} href={i.href} className="flex flex-col items-center gap-0.5 px-2">
+          <Link key={i.href} href={i.href} prefetch className="flex flex-col items-center gap-0.5 px-2">
             <span className="material-symbols-outlined text-[22px]" style={{ color: '#176b52' }}>{i.icon}</span>
             <span className="text-[10px]" style={{ color: '#3f4944' }}>{i.label}</span>
           </Link>
