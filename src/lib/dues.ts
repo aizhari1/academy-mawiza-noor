@@ -54,7 +54,21 @@ const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 })
 
-const AR_MONTHS = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+const AR_MONTHS = [
+  '',
+  'يناير',
+  'فبراير',
+  'مارس',
+  'أبريل',
+  'مايو',
+  'يونيو',
+  'يوليو',
+  'أغسطس',
+  'سبتمبر',
+  'أكتوبر',
+  'نوفمبر',
+  'ديسمبر',
+]
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
