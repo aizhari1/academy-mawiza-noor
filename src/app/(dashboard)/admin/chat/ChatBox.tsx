@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { sendChatMessage } from '@/app/actions/notes'
+import { sendChatMessage, uploadChatVoice } from '@/app/actions/notes'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export function ChatBox({ peerId }: { peerId: string }) {
   const [body, setBody] = useState('')
@@ -21,8 +20,13 @@ export function ChatBox({ peerId }: { peerId: string }) {
       const fd = new FormData()
       fd.set('body', body)
       fd.set('peer_id', peerId)
-      await sendChatMessage(fd)
+      const r = await sendChatMessage(fd)
+      if (r && 'error' in r && r.error) {
+        setVoiceStatus(r.error)
+        return
+      }
       setBody('')
+      setVoiceStatus('')
       router.refresh()
     })
   }
@@ -35,46 +39,34 @@ export function ChatBox({ peerId }: { peerId: string }) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream)
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : ''
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
       chunksRef.current = []
       mr.ondataavailable = (e) => {
         if (e.data.size) chunksRef.current.push(e.data)
       }
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        if (blob.size < 500) {
-          setVoiceStatus('التسجيل قصير جدًا')
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+        if (blob.size < 200) {
+          setVoiceStatus('التسجيل قصير جدًا — اضغط مطولًا أكثر')
           return
         }
         setVoiceStatus('جاري رفع الرسالة الصوتية...')
         start(async () => {
           try {
-            const supabase = createClient()
-            const path = `chat/${peerId}/${Date.now()}.webm`
-            try {
-              await supabase.storage.createBucket('chat-voice', { public: true })
-            } catch {
-              /* exists */
-            }
-            const { error } = await supabase.storage.from('chat-voice').upload(path, blob, {
-              contentType: 'audio/webm',
-              upsert: false,
-            })
-            if (error) {
-              setVoiceStatus('فشل الرفع: ' + error.message)
-              return
-            }
-            const { data } = supabase.storage.from('chat-voice').getPublicUrl(path)
-            const url = data?.publicUrl
-            if (!url) {
-              setVoiceStatus('تعذر الحصول على الرابط')
-              return
-            }
             const fd = new FormData()
-            fd.set('body', `🎤 رسالة صوتية\n${url}`)
             fd.set('peer_id', peerId)
-            await sendChatMessage(fd)
+            fd.set('audio', new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }))
+            const r = await uploadChatVoice(fd)
+            if (r && 'error' in r && r.error) {
+              setVoiceStatus('فشل الرفع: ' + r.error)
+              return
+            }
             setVoiceStatus('تم إرسال الصوت ✓')
             router.refresh()
           } catch (err: any) {
@@ -83,11 +75,11 @@ export function ChatBox({ peerId }: { peerId: string }) {
         })
       }
       mediaRef.current = mr
-      mr.start()
+      mr.start(250)
       setRecording(true)
-      setVoiceStatus('جاري التسجيل... اضغط مرة أخرى للإيقاف')
+      setVoiceStatus('جاري التسجيل... اضغط المايك مرة أخرى للإيقاف')
     } catch {
-      setVoiceStatus('الميكروفون غير متاح — اسمح بالوصول')
+      setVoiceStatus('الميكروفون غير متاح — اسمح بالوصول من إعدادات المتصفح')
     }
   }
 
