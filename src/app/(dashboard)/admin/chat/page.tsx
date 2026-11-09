@@ -16,13 +16,15 @@ export default async function AdminChatPage({
   const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single()
   if (profile && !['admin', 'supervisor'].includes(profile.role)) redirect('/login')
 
-  const { data: teacherProfiles } = await supabase
+  const { data: peers } = await supabase
     .from('profiles')
     .select('id, full_name, code, role')
-    .eq('role', 'teacher')
+    .in('role', ['teacher', 'supervisor', 'admin'])
+    .neq('id', user.id)
+    .order('role')
     .order('full_name')
 
-  const peerId = sp.with || teacherProfiles?.[0]?.id || ''
+  const peerId = sp.with || peers?.[0]?.id || ''
 
   let messages: any[] = []
   if (peerId) {
@@ -37,7 +39,9 @@ export default async function AdminChatPage({
     messages = data || []
   }
 
-  const peer = teacherProfiles?.find((t) => t.id === peerId)
+  const peer = peers?.find((t) => t.id === peerId)
+  const roleLabel = (r?: string | null) =>
+    r === 'admin' ? 'إدارة' : r === 'supervisor' ? 'مشرف' : r === 'teacher' ? 'معلم' : r || ''
 
   return (
     <div className="min-h-dvh max-w-lg mx-auto flex flex-col" style={{ background: '#eefdf6', height: '100dvh' }}>
@@ -46,14 +50,14 @@ export default async function AdminChatPage({
           <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
         </Link>
         <div className="flex-1">
-          <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>شات المعلمين</h1>
-          <p className="text-[11px]" style={{ color: '#6f7974' }}>تواصل الإدارة ↔ المعلم</p>
+          <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>الشات الداخلي</h1>
+          <p className="text-[11px]" style={{ color: '#6f7974' }}>إدارة · مشرفين · معلمين</p>
         </div>
         <Link href="/admin/notes" className="text-[12px] font-bold" style={{ color: '#176b52' }}>ملاحظات</Link>
       </header>
 
       <div className="px-3 pb-2 overflow-x-auto flex gap-2 shrink-0">
-        {(teacherProfiles ?? []).map((t) => (
+        {(peers ?? []).map((t) => (
           <Link
             key={t.id}
             href={`/admin/chat?with=${t.id}`}
@@ -65,16 +69,17 @@ export default async function AdminChatPage({
             }}
           >
             {t.full_name || t.code}
+            <span className="opacity-70 text-[10px] mr-1"> · {roleLabel(t.role)}</span>
           </Link>
         ))}
-        {(!teacherProfiles || teacherProfiles.length === 0) && (
-          <p className="text-[12px] px-2" style={{ color: '#6f7974' }}>لا يوجد معلمون بحساب دخول بعد</p>
+        {(!peers || peers.length === 0) && (
+          <p className="text-[12px] px-2" style={{ color: '#6f7974' }}>لا يوجد مستخدمون بعد</p>
         )}
       </div>
 
       {peer && (
         <p className="px-4 text-[12px] font-bold shrink-0 mb-1" style={{ color: '#00513c' }}>
-          المحادثة مع: {peer.full_name} {peer.code ? `(${peer.code})` : ''}
+          المحادثة مع: {peer.full_name} ({roleLabel(peer.role)})
         </p>
       )}
 
