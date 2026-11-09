@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChatBox } from './ChatBox'
+import { MessageBubble } from './MessageBubble'
 
 export default async function AdminChatPage({
   searchParams,
@@ -51,7 +52,7 @@ export default async function AdminChatPage({
         </Link>
         <div className="flex-1">
           <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>الشات الداخلي</h1>
-          <p className="text-[11px]" style={{ color: '#6f7974' }}>إدارة · مشرفين · معلمين</p>
+          <p className="text-[11px]" style={{ color: '#6f7974' }}>إدارة · مشرفين · معلمين · فويس</p>
         </div>
         <Link href="/admin/notes" className="text-[12px] font-bold" style={{ color: '#176b52' }}>ملاحظات</Link>
       </header>
@@ -91,19 +92,12 @@ export default async function AdminChatPage({
           const d = (m.details || {}) as any
           const mine = d.from_id === user.id
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
-              <div
-                className="max-w-[80%] rounded-2xl px-3.5 py-2.5"
-                style={{
-                  background: mine ? '#176b52' : '#fff',
-                  color: mine ? '#fff' : '#111e1a',
-                  border: mine ? 'none' : '1px solid rgba(18,61,50,0.08)',
-                }}
-              >
-                <p className="text-[13px] whitespace-pre-wrap leading-relaxed">{d.body}</p>
-                <p className="text-[9px] mt-1 opacity-70">{m.created_at?.slice(11, 16)}</p>
-              </div>
-            </div>
+            <MessageBubble
+              key={m.id}
+              body={String(d.body || '')}
+              mine={mine}
+              time={m.created_at?.slice(11, 16)}
+            />
           )
         })}
       </div>
