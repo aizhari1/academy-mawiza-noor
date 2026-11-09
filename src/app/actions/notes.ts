@@ -35,6 +35,7 @@ export async function addNote(formData: FormData) {
   revalidatePath('/admin/chat')
   revalidatePath('/teacher')
   revalidatePath('/supervisor')
+  revalidatePath('/supervisor/chat')
   return { success: true }
 }
 
@@ -72,5 +73,6 @@ export async function sendChatMessage(formData: FormData) {
 
   revalidatePath('/admin/chat')
   revalidatePath('/teacher/chat')
+  revalidatePath('/supervisor/chat')
   return { success: true }
 }
