@@ -4,45 +4,47 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
+/** Every action written to activity_log in this codebase + common legacy keys */
 const actionLabel: Record<string, string> = {
-  teacher_session_rate: 'تعديل سعر حصة معلم',
-  teacher_settlement: 'صرف راتب معلم',
-  teacher_note: 'ملاحظة على معلم',
-  chat_message: 'رسالة شات',
-  payment_reminder: 'تذكير مالي',
-  student_update: 'تعديل بيانات طالب',
-  session_num: 'تعديل رقم حصة',
-  trial_add: 'إضافة طالب تجريبي',
-  teacher_absence: 'تسجيل غياب معلم',
-  trial_report: 'تقرير حصة تجريبية',
-  deleted_session: 'حذف حصة',
-  teacher_delete_session: 'حذف حصة (من المعلم)',
-  parent_evaluation: 'تقييم ولي أمر',
+  add_student: 'إضافة طالب',
   admin_teacher_eval: 'تقييم الإدارة لمعلم',
-  supervisor_eval: 'نقاط إشراف',
-  cron_daily: 'مهمة يومية تلقائية',
-  delete_payment: 'حذف دفعة',
-  session_report: 'تسجيل حضور / تقرير حصة',
-  supervisor_edit_student: 'تعديل طالب (مشرف)',
-  delete_attendance_settle: 'حذف حضور مع تسوية',
-  add_payment: 'إضافة دفعة',
-  update_payment: 'تعديل دفعة',
+  change_status: 'تغيير حالة طالب',
+  chat_message: 'رسالة شات',
+  contact_status: 'تحديث حالة تواصل',
   create_student: 'إضافة طالب',
-  delete_student: 'حذف طالب',
-  create_package: 'إنشاء باقة',
-  update_package: 'تعديل باقة',
-  assign_teacher: 'تعيين معلم',
-  unassign_teacher: 'إلغاء تعيين معلم',
-  attendance: 'تسجيل حضور',
-  mark_attendance: 'تسجيل حضور',
-  settle_salary: 'تسوية راتب',
-  whatsapp_report: 'إرسال تقرير واتساب',
+  delete_attendance_settle: 'حذف حضور مع تسوية',
+  delete_payment: 'حذف دفعة',
+  deleted_session: 'حذف حصة',
+  finance_expense: 'مصروف من الصندوق',
   login: 'تسجيل دخول',
   logout: 'تسجيل خروج',
+  month_archive: 'أرشفة شهر',
+  note: 'ملاحظة',
+  parent_evaluation: 'تقييم ولي أمر',
+  payment_reminder: 'تذكير مالي',
+  record_payment: 'تسجيل دفعة',
+  session_num: 'تعديل رقم حصة',
+  session_report: 'تسجيل حضور / تقرير حصة',
+  student_status: 'تغيير حالة طالب',
+  student_update: 'تعديل بيانات طالب',
+  supervisor_edit_student: 'تعديل طالب (مشرف)',
+  supervisor_eval: 'تقييم مشرف',
+  supervisor_pay: 'تسجيل دفع (مشرف)',
+  supervisor_payment: 'تسجيل دفع (مشرف)',
+  teacher_absence: 'غياب معلم',
+  teacher_delete_session: 'حذف حصة (معلم)',
+  teacher_note: 'ملاحظة معلم',
+  teacher_session_rate: 'تعديل سعر حصة معلم',
+  teacher_settlement: 'صرف راتب معلم',
+  transfer_student: 'نقل طالب لمعلم',
+  trial_add: 'إضافة طالب تجريبي',
+  trial_report: 'تقرير حصة تجريبية',
+  whatsapp_report: 'إرسال تقرير واتساب',
 }
 
 const fieldLabel: Record<string, string> = {
   name: 'الاسم',
+  code: 'الكود',
   amount: 'المبلغ',
   method: 'طريقة الدفع',
   notes: 'ملاحظات',
@@ -67,6 +69,13 @@ const fieldLabel: Record<string, string> = {
   homework: 'الواجب',
   from: 'من',
   to: 'إلى',
+  month: 'الشهر',
+  year: 'السنة',
+  title: 'العنوان',
+  body: 'النص',
+  reason: 'السبب',
+  expense: 'المصروف',
+  category: 'التصنيف',
 }
 
 function fmtValue(v: unknown): string {
@@ -86,6 +95,9 @@ function fmtValue(v: unknown): string {
   const s = String(v)
   if (s === 'حاضر' || s === 'present') return 'حاضر'
   if (s === 'غائب' || s === 'absent') return 'غائب'
+  if (s === 'active') return 'نشط'
+  if (s === 'inactive' || s === 'stopped') return 'متوقف'
+  if (s === 'paused') return 'موقوف مؤقتاً'
   return s
 }
 
@@ -95,6 +107,7 @@ function formatDetails(details: unknown): string[] {
   const lines: string[] = []
   const preferred = [
     'name',
+    'code',
     'status',
     'session_num',
     'date',
@@ -110,6 +123,11 @@ function formatDetails(details: unknown): string[] {
     'evaluation',
     'homework',
     'report',
+    'title',
+    'month',
+    'year',
+    'reason',
+    'category',
   ]
   const seen = new Set<string>()
   for (const k of preferred) {
@@ -119,6 +137,7 @@ function formatDetails(details: unknown): string[] {
   }
   for (const [k, v] of Object.entries(d)) {
     if (seen.has(k)) continue
+    // hide raw UUIDs when we already have human fields
     if ((k.endsWith('_id') || k === 'attendance_id') && lines.length > 0) continue
     lines.push(`${fieldLabel[k] || k}: ${fmtValue(v)}`)
   }
