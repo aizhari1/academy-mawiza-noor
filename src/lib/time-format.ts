@@ -1,9 +1,22 @@
-/** تنسيق الوقت */
-export function toTimeLabel(t: string | null | undefined): string {
-  if (!t) return '—'
-  return String(t).slice(0, 5)
+/** تنسيق الوقت بنظام 12 ساعة (ص/م) */
+
+export function formatTime12(t?: string | null): string {
+  if (t == null || t === '') return '—'
+  const raw = String(t).trim()
+  const m = raw.match(/(\d{1,2}):(\d{2})/)
+  if (!m) return raw
+  let h = Number(m[1])
+  const min = m[2]
+  if (Number.isNaN(h) || h < 0 || h > 23) return raw.slice(0, 5)
+  const period = h >= 12 ? 'م' : 'ص'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${min} ${period}`
 }
 
-export function todayKeyCairo(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' })
+export function formatDateTime12(date?: string | null, time?: string | null): string {
+  const d = date ? String(date).slice(0, 10) : ''
+  const tm = formatTime12(time)
+  if (d && tm !== '—') return `${d} · ${tm}`
+  return d || tm
 }
