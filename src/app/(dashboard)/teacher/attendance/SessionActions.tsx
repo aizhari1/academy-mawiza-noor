@@ -123,11 +123,7 @@ export default function SessionActions({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-[10px] font-bold block mb-0.5">الحالة</label>
-              <select
-                className="input text-[12px] py-1.5"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
+              <select className="input text-[12px] py-1.5" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="حاضر">حاضر</option>
                 <option value="متأخر">متأخر</option>
                 <option value="غائب">غائب</option>
