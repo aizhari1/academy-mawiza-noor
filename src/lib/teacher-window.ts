@@ -2,10 +2,6 @@ import { currentMonthKey, monthBounds } from '@/lib/dues'
 
 type Sb = { from: (t: string) => any }
 
-/**
- * نافذة عدّ حصص المعلم: من أول الشهر الحالي (بتصفّر لوحدها يوم 1)
- * ولو الإدارة سوّت راتبه الشهر ده، العدّ يبدأ من بعد تاريخ آخر تسوية.
- */
 export async function teacherCountWindow(
   sb: Sb,
   teacher: { id: string; name?: string | null }

@@ -17,10 +17,6 @@ export type TeacherRow = {
   rate_percent?: number | null
 }
 
-/**
- * يجيب صف المعلم المرتبط بالحساب.
- * لو مش موجود: يحاول الربط بالاسم/الكود من profiles، أو ينشئ صف جديد (للمعلمين فقط).
- */
 export async function resolveTeacherForUser(
   _supabase: SupabaseClient,
   userId: string
@@ -58,7 +54,7 @@ export async function resolveTeacherForUser(
           created: false,
           role,
           message:
-            'أنت داخل بحساب الإدارة/الإشراف. للتسميع والطلاب سجّل دخول بحساب المعلم (مثل مصطفى منيع).',
+            'أنت داخل بحساب الإدارة/الإشراف. للتسميع والطلاب سجّل دخول بحساب المعلم.',
         }
       }
     }
