@@ -1,11 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { requireAdmin } from '@/lib/courses'
+import PackageEditor from './PackageEditor'
+
+export const dynamic = 'force-dynamic'
 
 export default async function PackagesPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+  if (!(await requireAdmin()).ok) redirect('/login')
 
   const { data: packages } = await supabase.from('packages').select('*').eq('is_active', true).order('sessions_count')
 
@@ -25,10 +32,24 @@ export default async function PackagesPage() {
                 <h3 className="text-[15px] font-bold">{p.name}</h3>
                 <p className="text-[12px] text-[#6f7974] mt-0.5">{p.description || `${p.sessions_count} حصة`}</p>
               </div>
-              <p className="text-[18px] font-bold text-[#176b52]">{Number(p.price).toLocaleString('ar-EG')}</p>
+              <p className="text-[18px] font-bold text-[#176b52]">{Number(p.price).toLocaleString('en-US')}</p>
             </div>
+            <PackageEditor
+              pkg={{
+                id: p.id,
+                name: p.name,
+                sessions_count: Number(p.sessions_count),
+                duration_minutes: p.duration_minutes ?? null,
+                price: Number(p.price),
+                description: p.description ?? null,
+              }}
+            />
           </div>
         ))}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h3 className="text-[14px] font-bold">باقة جديدة</h3>
+          <PackageEditor />
+        </div>
       </main>
     </div>
   )

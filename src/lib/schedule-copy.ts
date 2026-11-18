@@ -1,9 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchAll } from '@/lib/dues-engine'
 
-/**
- * ينسخ المواعيد المرتبطة بتاريخ من شهر لشهر بعده (المواعيد الأسبوعية الثابتة بدون تاريخ مش محتاجة نسخ).
- */
 export async function copyDatedSchedule(sb: SupabaseClient, fromMonth: string, toMonth: string) {
   const [fy, fm] = fromMonth.split('-').map(Number)
   const [ty, tm] = toMonth.split('-').map(Number)
@@ -35,7 +32,12 @@ export async function copyDatedSchedule(sb: SupabaseClient, fromMonth: string, t
       .range(f, t)
   )
 
-  const seen = new Set((existing ?? []).map((e: any) => `${e.student_id || ''}|${e.teacher_id || ''}|${String(e.start_time || '').slice(0, 5)}|${e.session_date || ''}`))
+  const seen = new Set(
+    (existing ?? []).map(
+      (e: any) =>
+        `${e.student_id || ''}|${e.teacher_id || ''}|${String(e.start_time || '').slice(0, 5)}|${e.session_date || ''}`
+    )
+  )
   const rows: any[] = []
   for (const e of src ?? []) {
     const day = Number(String(e.session_date).slice(8, 10))

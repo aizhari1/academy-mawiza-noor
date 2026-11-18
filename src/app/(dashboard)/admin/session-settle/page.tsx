@@ -1,49 +1,42 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { currentMonthKey, monthBounds, monthLabelAr } from '@/lib/dues'
-import { SettleClient } from './SettleClient'
+import { serviceClient } from '@/lib/supabase/service'
+import { SettleShell, type SettleStudent } from './SettleShell'
 
 export const dynamic = 'force-dynamic'
 
-export default async function SessionSettlePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ student?: string; month?: string }>
-}) {
-  const sp = await searchParams
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const month = sp.month || currentMonthKey()
-  const { start, end } = monthBounds(month)
-
-  const { data: students } = await supabase
-    .from('students')
-    .select('id, code, name, last_session_num, teacher_id, teachers(name)')
-    .in('status', ['نشط', 'موقوف', 'تجريبي'])
-    .order('name')
-    .limit(500)
-
-  let sessions: any[] = []
-  let selected: any = null
-  if (sp.student) {
-    selected = (students ?? []).find((s) => s.id === sp.student) || null
-    const { data } = await supabase
-      .from('attendance')
-      .select(
-        'id, session_date, session_num, status, notes, session_duration, teacher_id, teachers(name), students(name, code)'
-      )
-      .eq('student_id', sp.student)
-      .gte('session_date', start)
-      .lte('session_date', end)
-      .order('session_date', { ascending: false })
-      .limit(200)
-    sessions = data ?? []
+async function loadStudents(): Promise<SettleStudent[]> {
+  try {
+    const sb = serviceClient()
+    const { data, error } = await sb
+      .from('students')
+      .select('id, code, name, last_session_num, monthly_sessions, teacher_id, teachers(name)')
+      .in('status', ['نشط', 'موقوف', 'تجريبي'])
+      .order('name')
+      .limit(1000)
+    if (error) {
+      console.error('settle students', error.message)
+      return []
+    }
+    return (data || []).map((s: any) => {
+      const t = Array.isArray(s.teachers) ? s.teachers[0] : s.teachers
+      return {
+        id: s.id,
+        code: s.code || '',
+        name: s.name || '',
+        last_session_num: s.last_session_num,
+        monthly_sessions: s.monthly_sessions != null ? Number(s.monthly_sessions) : null,
+        teacher_id: s.teacher_id,
+        teacher_name: t?.name || '—',
+      }
+    })
+  } catch (e) {
+    console.error('settle load', e)
+    return []
   }
+}
+
+export default async function SessionSettlePage() {
+  const students = await loadStudents()
 
   return (
     <div className="min-h-dvh max-w-lg mx-auto pb-24" style={{ background: '#eefdf6' }}>
@@ -53,21 +46,14 @@ export default async function SessionSettlePage({
         </Link>
         <div>
           <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>
-            تسوية حصص طالب / معلم
+            حصص المعلم عند الطالب
           </h1>
           <p className="text-[11px]" style={{ color: '#6f7974' }}>
-            {monthLabelAr(month)} — احذف الحصص الغلط أو عدّل الرقم
+            {students.length} طالب · ابحث · احذف حصة غلط · أضف حصة منسية
           </p>
         </div>
       </header>
-
-      <SettleClient
-        students={(students as any) ?? []}
-        selectedId={sp.student || ''}
-        month={month}
-        sessions={sessions}
-        selected={selected}
-      />
+      <SettleShell initialStudents={students} />
     </div>
   )
 }

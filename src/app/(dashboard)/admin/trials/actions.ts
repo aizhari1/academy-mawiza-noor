@@ -33,7 +33,9 @@ export async function addTrial(formData: FormData) {
       session_duration: 30,
       price_per_session: 0,
       amount_due: 0,
-      notes: notes ? `تجريبي${trialDate ? ' · ' + trialDate : ''} · ${notes}` : `تجريبي${trialDate ? ' · ' + trialDate : ''}`,
+      notes: notes
+        ? `تجريبي${trialDate ? ' · ' + trialDate : ''} · ${notes}`
+        : `تجريبي${trialDate ? ' · ' + trialDate : ''}`,
     })
     .select('id')
     .single()
@@ -43,7 +45,7 @@ export async function addTrial(formData: FormData) {
   await supabase.from('activity_log').insert({
     action: 'trial_add',
     entity_id: data?.id,
-    user_id: user.id,
+    actor_id: user.id,
     details: { name, code, teacher_id: teacherId, trial_date: trialDate },
   })
 
