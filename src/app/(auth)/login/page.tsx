@@ -2,7 +2,10 @@
 
 import { useState, useTransition, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { saveSessionBackup, saveRoleBackup } from '@/lib/session-persist'
+import { saveLastRole, type AppRole } from '@/lib/app-prefs'
+import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand-logo'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 function padPwd(code: string) {
@@ -11,8 +14,14 @@ function padPwd(code: string) {
   return (c + c + c + c + c + c).slice(0, 6)
 }
 
+function homeForRole(role: string) {
+  if (role === 'teacher') return '/teacher'
+  if (role === 'supervisor') return '/supervisor'
+  if (role === 'parent') return '/parent'
+  return '/admin'
+}
+
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const roleHint = searchParams?.get('role') || null
   const roleTitle =
@@ -23,14 +32,6 @@ function LoginForm() {
         : roleHint === 'supervisor'
           ? 'دخول الإشراف'
           : 'تسجيل الدخول'
-  const roleIcon =
-    roleHint === 'teacher'
-      ? 'record_voice_over'
-      : roleHint === 'admin'
-        ? 'admin_panel_settings'
-        : roleHint === 'supervisor'
-          ? 'supervisor_account'
-          : 'menu_book'
 
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
@@ -47,14 +48,14 @@ function LoginForm() {
 
     startTransition(async () => {
       const upper = raw.toUpperCase()
-      const email = `${upper}@mawiza.local`
-      const emailLower = `${raw.toLowerCase()}@mawiza.local`
+      const email = `${upper}@ashbal.local`
+      const emailLower = `${raw.toLowerCase()}@ashbal.local`
 
       const attempts: [string, string][] =
         upper === 'ADMIN'
           ? [
-              ['ADMIN@mawiza.local', 'MawizaADMIN'],
-              ['admin@mawiza.local', 'MawizaADMIN'],
+              ['ADMIN@ashbal.local', 'AshbalADMIN'],
+              ['admin@ashbal.local', 'AshbalADMIN'],
             ]
           : [
               [email, padPwd(raw)],
@@ -80,23 +81,32 @@ function LoginForm() {
                 .select('role')
                 .eq('id', data.user!.id)
                 .maybeSingle()
-              if (profile?.role) role = profile.role
+              if (profile?.role) role = String(profile.role)
             } catch {
               /* ignore */
             }
 
-            if (role === 'teacher') router.replace('/teacher')
-            else if (role === 'supervisor') router.replace('/supervisor')
-            else if (role === 'parent') router.replace('/parent')
-            else router.replace('/admin')
+            saveSessionBackup(data.session)
+            saveRoleBackup(role)
+            saveLastRole(role as AppRole)
+
+            const dest = homeForRole(role)
+            window.location.assign(dest)
             return
           }
-          if (err) lastMsg = err.message
+          if (err) lastMsg = err.message || lastMsg
         }
-        setError(lastMsg)
+
+        if (/invalid login|invalid credentials/i.test(lastMsg)) {
+          setError('الكود غير صحيح')
+        } else if (/network|fetch|failed to fetch/i.test(lastMsg)) {
+          setError('مشكلة في الاتصال بالخادم — جرّب نت تاني')
+        } else {
+          setError(lastMsg)
+        }
       } catch (e: any) {
-        const msg = String(e?.message || e)
-        if (/fetch|network|failed/i.test(msg)) {
+        const msg = String(e?.message || e || '')
+        if (/fetch|network|Failed/i.test(msg)) {
           setError('الاتصال بـ Supabase فشل. تأكد إن النت شغال.')
         } else {
           setError(msg || 'خطأ غير متوقع')
@@ -107,22 +117,29 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="text-center mb-8">
-        <div
-          className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 shadow-lg"
-          style={{ background: 'linear-gradient(145deg, #176b52, #00513c)' }}
-        >
-          <span className="material-symbols-outlined text-4xl text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
-            {roleIcon}
-          </span>
-        </div>
-        <h1 className="text-[22px] font-bold" style={{ color: '#00513c' }}>{roleTitle}</h1>
-        <p className="text-[13px] mt-1" style={{ color: '#6f7974' }}>أكاديمية موعظة ونور — بالكود فقط</p>
+      <div className="text-center mb-6">
+        <img
+          src={BRAND_LOGO_SRC}
+          alt={BRAND_NAME}
+          className="mx-auto mb-3 object-contain"
+          style={{ width: 160, height: 160 }}
+        />
+        <h1 className="text-[22px] font-bold" style={{ color: '#00513c' }}>
+          {roleTitle}
+        </h1>
+        <p className="text-[13px] mt-1 font-semibold" style={{ color: '#176b52' }}>
+          {BRAND_NAME}
+        </p>
+        <p className="text-[12px] mt-0.5" style={{ color: '#6f7974' }}>
+          {BRAND_TAGLINE} — بالكود فقط
+        </p>
       </div>
 
       <form onSubmit={submit} className="card p-5 space-y-4">
         <div>
-          <label className="block text-[12px] font-semibold mb-1.5" style={{ color: '#3f4944' }}>كود الدخول</label>
+          <label className="block text-[12px] font-semibold mb-1.5" style={{ color: '#3f4944' }}>
+            كود الدخول
+          </label>
           <input
             className="input text-center text-[18px] tracking-widest"
             value={code}
@@ -134,7 +151,10 @@ function LoginForm() {
           />
         </div>
         {error && (
-          <p className="text-[12px] text-center rounded-lg py-2 px-2 break-words" style={{ background: '#ffdad6', color: '#93000a' }}>
+          <p
+            className="text-[12px] text-center rounded-lg py-2 px-2 break-words"
+            style={{ background: '#ffdad6', color: '#93000a' }}
+          >
             {error}
           </p>
         )}
@@ -145,8 +165,8 @@ function LoginForm() {
 
       <div className="text-center mt-5 space-y-2">
         <div>
-          <Link href="/" className="text-[13px] font-medium" style={{ color: '#176b52' }}>
-            ← الصفحة الرئيسية
+          <Link href="/app" className="text-[13px] font-medium" style={{ color: '#176b52' }}>
+            ← اختيار نوع الدخول
           </Link>
         </div>
         <div>
