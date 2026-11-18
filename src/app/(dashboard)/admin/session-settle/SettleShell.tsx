@@ -41,7 +41,6 @@ function norm(s: string) {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** تبويب «حصص المعلم عند الطالب»: بيعدّل سجل المعلم بس (حذف / إضافة حصة منسية) ومبيلمسش عدّاد الطالب. */
 export function SettleShell({ initialStudents }: { initialStudents: SettleStudent[] }) {
   const [students] = useState<SettleStudent[]>(initialStudents || [])
   const [q, setQ] = useState('')
