@@ -75,13 +75,16 @@ export default function PackageEditor({ pkg }: { pkg?: Pkg }) {
         </button>
         {pkg && (
           <>
-            <button onClick={() => setOpen(false)} className="text-[12px]">إلغاء</button>
-            <button onClick={remove} disabled={pending} className="text-[12px] mr-auto" style={{ color: '#93000a' }}>إخفاء</button>
+            <button onClick={() => setOpen(false)} className="text-[12px]">
+              إلغاء
+            </button>
+            <button onClick={remove} disabled={pending} className="text-[12px] mr-auto" style={{ color: '#93000a' }}>
+              إخفاء
+            </button>
           </>
         )}
       </div>
       {msg && <p className="text-[12px] font-bold">{msg}</p>}
-      {pkg && <p className="text-[11px]" style={{ color: '#6f7974' }}>تغيير السعر بيأثر على الطلاب الجدد فقط.</p>}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/courses'
+import { requireAdmin } from '@/lib/auth-guards'
 import { serviceClient } from '@/lib/supabase/service'
 
 function revalidate() {

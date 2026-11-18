@@ -9,10 +9,9 @@ export function CopyMonthButton() {
 
   return (
     <div className="card p-4 mb-4">
-      <h2 className="text-[13px] font-bold mb-1">نسخ مواعيد أكتوبر → نوفمبر</h2>
+      <h2 className="text-[13px] font-bold mb-1">نسخ مواعيد شهر لشهر</h2>
       <p className="text-[11px] mb-3" style={{ color: '#6f7974' }}>
-        ينسخ كل مواعيد شهر 10 إلى شهر 11 بنفس الطلاب والمعلمين والوقت والمدة والملاحظات.
-        المواعيد الأسبوعية الثابتة تظهر تلقائيًا كل شهر.
+        ينسخ مواعيد شهر محدد إلى الشهر التالي بنفس الطلاب والمعلمين والوقت.
       </p>
       <button
         type="button"
