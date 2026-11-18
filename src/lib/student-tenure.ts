@@ -32,9 +32,7 @@ export function formatTenureAr(isoDate: string | null | undefined): string {
   const start = new Date(String(isoDate).slice(0, 10) + 'T12:00:00')
   if (Number.isNaN(start.getTime())) return 'غير محدد'
 
-  const now = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' })
-  )
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }))
   const a = new Date(start.getFullYear(), start.getMonth(), start.getDate())
   const b = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   if (b < a) return 'اليوم'

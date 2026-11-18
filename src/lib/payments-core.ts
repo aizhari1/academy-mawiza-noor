@@ -63,7 +63,20 @@ export async function applyPayment(supabase: SupabaseClient, input: ApplyPayment
   const paymentDate = (input.payment_date || todayKey()).slice(0, 10)
   const prepaidMonths = Math.max(0, Math.min(24, Math.floor(Number(input.prepaid_months) || 0)))
   const isPrepaid = prepaidMonths >= 1
-  const prepaidUntil = isPrepaid ? computePrepaidUntil(paymentDate, prepaidMonths) : null
+  let existingPrepaidUntil: string | null = null
+  if (isPrepaid) {
+    try {
+      const { data: cur } = await supabase
+        .from('students')
+        .select('prepaid_until')
+        .eq('id', input.student_id)
+        .maybeSingle()
+      existingPrepaidUntil = (cur as any)?.prepaid_until ? String((cur as any).prepaid_until).slice(0, 10) : null
+    } catch {
+      /* */
+    }
+  }
+  const prepaidUntil = isPrepaid ? computePrepaidUntil(paymentDate, prepaidMonths, existingPrepaidUntil) : null
   if (isPrepaid && prepaidUntil) {
     const tag = `دفع مقدم ${prepaidMonths} شهر · حتى ${prepaidUntil}`
     notes = notes ? `${notes}\n${tag}` : tag
