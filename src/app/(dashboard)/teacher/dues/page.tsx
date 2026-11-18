@@ -1,79 +1,110 @@
+import { currentMonthKey, previousMonthKey, monthLabelAr } from '@/lib/dues'
+import { fetchAll } from '@/lib/dues-engine'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { computeOneTeacherPay } from '@/lib/teacher-payroll'
+import { resolveTeacherForUser } from '@/lib/resolve-teacher'
 
-export default async function TeacherDuesPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function TeacherDuesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>
+}) {
+  const sp = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: teacher } = await supabase.from('teachers').select('*').eq('profile_id', user.id).maybeSingle()
+  const resolved = await resolveTeacherForUser(supabase, user.id)
+  const teacher = resolved.teacher
   if (!teacher) {
     return (
       <div className="p-6 max-w-lg mx-auto">
-        <Link href="/teacher" className="text-[13px]" style={{ color: '#176b52' }}>← رجوع</Link>
+        <Link href="/teacher" className="text-[13px]" style={{ color: '#176b52' }}>
+          ← رجوع
+        </Link>
         <p className="mt-4">لا يوجد ملف معلم مرتبط بحسابك. تواصل مع الإدارة.</p>
+        <p className="text-[12px] mt-2" style={{ color: '#6f7974' }}>
+          {resolved.message}
+        </p>
       </div>
     )
   }
 
-  // أكتوبر فقط
-  const monthStart = '2026-10-01'
-  const monthEnd = '2026-10-31'
+  const month = sp.month || currentMonthKey()
+  const pay = await computeOneTeacherPay(supabase, teacher.id, month)
 
-  const { count: sessions } = await supabase
-    .from('attendance')
-    .select('*', { count: 'exact', head: true })
-    .eq('teacher_id', teacher.id)
-    .eq('status', 'حاضر')
-    .gte('session_date', monthStart)
-    .lte('session_date', monthEnd)
-
-  const { data: rateLogs } = await supabase
-    .from('activity_log')
-    .select('details')
-    .eq('action', 'teacher_session_rate')
-    .eq('entity_id', teacher.id)
-    .limit(1)
-
-  const sessionRate = Number((rateLogs?.[0]?.details as any)?.session_rate) || 25
-  const sessionsCount = sessions ?? 0
-  const salary = sessionsCount * sessionRate
-
-  const { data: settlements } = await supabase
-    .from('activity_log')
-    .select('details')
-    .eq('action', 'teacher_settlement')
+  const settlements = await fetchAll<any>((f, to) =>
+    supabase
+      .from('activity_log')
+      .select('details')
+      .eq('action', 'teacher_settlement')
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(f, to)
+  )
 
   let settled = 0
-  for (const s of settlements ?? []) {
+  for (const s of settlements) {
     const d = s.details as any
-    if (d?.teacher_name === teacher.name) settled += Number(d.amount || 0)
+    if (d?.teacher_id ? d.teacher_id === teacher.id : d?.teacher_name === teacher.name) {
+      if (d?.month && d.month !== month && month !== 'all') continue
+      settled += Number(d.amount || 0)
+    }
   }
+
+  const remaining = Math.max(0, pay.salary - settled)
+  const cur = currentMonthKey()
+  const prev = previousMonthKey()
 
   return (
     <div className="min-h-dvh max-w-lg mx-auto p-4" style={{ background: '#eefdf6' }}>
-      <Link href="/teacher" className="text-[13px]" style={{ color: '#176b52' }}>← رجوع</Link>
-      <h1 className="text-[18px] font-bold mt-2">مستحقاتي — أكتوبر 2026</h1>
-      <p className="text-[12px] mt-1" style={{ color: '#6f7974' }}>الراتب = حصص أكتوبر × 25 ج.م</p>
+      <Link href="/teacher" className="text-[13px]" style={{ color: '#176b52' }}>
+        ← رجوع
+      </Link>
+      <h1 className="text-[18px] font-bold mt-2">مستحقاتي</h1>
+      <p className="text-[12px] mt-1" style={{ color: '#6f7974' }}>
+        {pay.bounds.label} · حسب عدد الحصص المسجّلة
+      </p>
+
+      <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+        {[
+          { key: cur, label: monthLabelAr(cur) },
+          { key: prev, label: monthLabelAr(prev) },
+          { key: 'all', label: 'الكل' },
+        ].map((m) => (
+          <Link
+            key={m.key}
+            href={`/teacher/dues?month=${m.key}`}
+            className="shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold"
+            style={{
+              background: month === m.key ? '#176b52' : '#fff',
+              color: month === m.key ? '#fff' : '#176b52',
+            }}
+          >
+            {m.label}
+          </Link>
+        ))}
+      </div>
 
       <div className="card p-5 mt-4 space-y-3">
         <div className="flex justify-between text-[14px]">
-          <span style={{ color: '#6f7974' }}>الحصص (أكتوبر · حاضر)</span>
-          <b>{sessionsCount}</b>
+          <span style={{ color: '#6f7974' }}>الحصص (حاضر)</span>
+          <b>{pay.sessions}</b>
         </div>
-        <div className="flex justify-between text-[14px]">
-          <span style={{ color: '#6f7974' }}>سعر الحصة</span>
-          <b>{sessionRate} ج.م</b>
-        </div>
-        <div className="flex justify-between text-[14px]">
-          <span style={{ color: '#6f7974' }}>نسبة الأكاديمية</span>
-          <b>{teacher.rate_percent}%</b>
+        <div className="flex justify-between text-[13px]">
+          <span style={{ color: '#6f7974' }}>تفاصيل السعر</span>
+          <b>{pay.rateParts} ج</b>
         </div>
         <hr style={{ borderColor: 'rgba(18,61,50,0.08)' }} />
         <div className="flex justify-between text-[16px]">
           <span className="font-bold">الراتب المستحق</span>
-          <b style={{ color: '#176b52' }}>{salary.toLocaleString('ar-EG')} ج.م</b>
+          <b style={{ color: '#176b52' }}>{pay.salary.toLocaleString('ar-EG')} ج.م</b>
         </div>
         <div className="flex justify-between text-[14px]">
           <span style={{ color: '#6f7974' }}>تم صرفه</span>
@@ -81,9 +112,36 @@ export default async function TeacherDuesPage() {
         </div>
         <div className="flex justify-between text-[16px]">
           <span className="font-bold">المتبقي</span>
-          <b style={{ color: '#ba1a1a' }}>{Math.max(0, salary - settled).toLocaleString('ar-EG')} ج.م</b>
+          <b style={{ color: '#ba1a1a' }}>{remaining.toLocaleString('ar-EG')} ج.م</b>
         </div>
       </div>
+
+      {pay.lines.length > 0 && (
+        <div className="card p-4 mt-4">
+          <p className="text-[13px] font-bold mb-2">حصص {pay.bounds.label}</p>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            {[...pay.lines]
+              .sort((a, b) => b.session_date.localeCompare(a.session_date))
+              .slice(0, 40)
+              .map((l, i) => (
+                <div key={i} className="flex justify-between text-[12px] gap-2">
+                  <span className="truncate">
+                    {l.session_date} · {l.student_name}
+                  </span>
+                  <span className="shrink-0 font-bold" style={{ color: '#176b52' }}>
+                    {l.rate.toLocaleString('ar-EG')} ج
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {pay.lines.length === 0 && (
+        <p className="card p-6 text-center text-[13px] mt-4" style={{ color: '#6f7974' }}>
+          لا حصص مسجّلة في {pay.bounds.label}
+        </p>
+      )}
     </div>
   )
 }

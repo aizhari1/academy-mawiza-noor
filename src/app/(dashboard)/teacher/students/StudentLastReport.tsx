@@ -38,7 +38,9 @@ export default function StudentLastReport({
         style={{ color: '#176b52' }}
         onClick={() => setOpen(!open)}
       >
-        {open ? 'إخفاء آخر تقرير' : `آخر تقرير · ${last.session_date}${last.session_num ? ` · حصة ${last.session_num}` : ''}`}
+        {open
+          ? 'إخفاء آخر تقرير'
+          : `آخر تقرير · ${last.session_date}${last.session_num ? ` · حصة ${last.session_num}` : ''}`}
       </button>
 
       {open && (
