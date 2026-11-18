@@ -1,6 +1,5 @@
 /**
  * مصدر واحد لحساب المستحقات (Backend فقط).
- * لوحتا الإدارة والإشراف تستدعيان نفس الدوال هنا.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -31,15 +30,29 @@ export async function fetchAll<T>(build: (from: number, to: number) => PageResul
 }
 
 export function buildLastPay(
-  pays: { student_id: string | null; payment_date: string | null; due_after?: number | null }[]
+  pays: {
+    student_id: string | null
+    payment_date: string | null
+    due_after?: number | null
+    prepaid_months?: number | null
+    created_at?: string | null
+  }[]
 ): Record<string, LastPay> {
+  const sorted = [...pays].sort((a, b) => {
+    const da = String(a.payment_date || '').slice(0, 10)
+    const db = String(b.payment_date || '').slice(0, 10)
+    if (da !== db) return da < db ? 1 : -1
+    const ca = String(a.created_at || '')
+    const cb = String(b.created_at || '')
+    return ca < cb ? 1 : ca > cb ? -1 : 0
+  })
   const lastPay: Record<string, LastPay> = {}
-  for (const p of pays) {
+  for (const p of sorted) {
     if (!p.student_id || !p.payment_date) continue
     if (lastPay[p.student_id]) continue
     lastPay[p.student_id] = {
       day: String(p.payment_date).slice(0, 10),
-      months: 1,
+      months: Math.max(1, Math.floor(Number(p.prepaid_months) || 1)),
       residual: Number(p.due_after) > 0 ? Number(p.due_after) : 0,
     }
   }
@@ -103,33 +116,39 @@ export async function loadDuesInputs(supabase: SupabaseClient): Promise<DuesInpu
     prepaid_until: s.prepaid_until || null,
   }))
 
-  let pays: any[]
-  try {
-    pays = await fetchAll<any>((from, to) =>
-      supabase
-        .from('payments')
-        .select('id, student_id, payment_date, amount, due_after, created_at')
-        .gt('amount', 0)
-        .order('payment_date', { ascending: false })
-        .range(from, to)
-    )
-  } catch {
-    pays = await fetchAll<any>((from, to) =>
-      supabase
-        .from('payments')
-        .select('id, student_id, payment_date, amount, created_at')
-        .gt('amount', 0)
-        .order('payment_date', { ascending: false })
-        .range(from, to)
-    )
+  const payCols = [
+    'id, student_id, payment_date, amount, due_after, prepaid_months, created_at',
+    'id, student_id, payment_date, amount, due_after, created_at',
+    'id, student_id, payment_date, amount, created_at',
+  ]
+  let pays: any[] = []
+  let lastErr: unknown = null
+  for (const cols of payCols) {
+    try {
+      pays = await fetchAll<any>((from, to) =>
+        supabase
+          .from('payments')
+          .select(cols)
+          .gt('amount', 0)
+          .order('payment_date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      )
+      lastErr = null
+      break
+    } catch (e) {
+      lastErr = e
+    }
   }
+  if (lastErr) throw lastErr
 
   const att = await fetchAll<any>((from, to) =>
     supabase
       .from('attendance')
-      .select('student_id, session_date, status')
+      .select('id, student_id, session_date, status')
       .in('status', ['حاضر', 'متأخر'])
       .order('session_date', { ascending: true })
+      .order('id', { ascending: true })
       .range(from, to)
   )
 
