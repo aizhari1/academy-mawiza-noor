@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 
-/** اختيار شهر العرض — يغيّر عرض المحصّل فقط، ولا يمس المستحقات ولا تواريخها */
 export function MonthSwitcher({ current, basePath }: { current: string; basePath: string }) {
   const router = useRouter()
   return (
