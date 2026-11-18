@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { requireAdmin } from '@/lib/courses'
+import { requireAdmin } from '@/lib/auth-guards'
 import PackageEditor from './PackageEditor'
 
 export const dynamic = 'force-dynamic'
