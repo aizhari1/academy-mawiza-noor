@@ -4,11 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { serviceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 
-/**
- * حذف نهائي للطالب من النظام كله:
- * حضور · دفعات · مواعيد · أي صف مرتبط · ثم سجل الطالب
- * للإدارة فقط
- */
 export async function deleteStudentCompletely(studentId: string) {
   const supabase = await createClient()
   const {

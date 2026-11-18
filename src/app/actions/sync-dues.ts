@@ -1,18 +1,30 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { computeAndSyncDues } from '@/lib/dues-engine'
+import { requireFinanceRole } from '@/lib/payments-core'
 
-/** مزامنة amount_due من آخر حالة معروفة — تُستدعى عند فتح المالية */
-export async function syncDuesSnapshot() {
+export async function syncAllStudentDues() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+  const auth = await requireFinanceRole(supabase)
+  if (!auth.ok) return { error: auth.error }
+
   try {
-    const supabase = await createClient()
-    // لا تغيير جذري — الاعتماد على amount_due المخزّن بعد كل دفعة
-    const { count } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .gt('amount_due', 0)
-    return { ok: true, withDues: count ?? 0 }
+    const r = await computeAndSyncDues(supabase)
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/finance')
+    revalidatePath('/admin/students')
+    revalidatePath('/supervisor')
+    revalidatePath('/admin/monthly')
+
+    return { success: true, due_count: r.count, due_total: r.total, updated: r.updated }
   } catch (e: any) {
-    return { ok: false, error: String(e?.message || e) }
+    return { error: e?.message || 'تعذّرت مزامنة المستحقات' }
   }
 }
