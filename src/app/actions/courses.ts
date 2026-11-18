@@ -20,6 +20,7 @@ export async function createUploadUrl(bucket: 'landing-media' | 'course-media', 
   if (bucket !== 'landing-media' && bucket !== 'course-media') return { error: 'bucket غير صالح' }
   const ext = (filename.split('.').pop() || '').toLowerCase()
   if (!EXT_OK.includes(ext)) return { error: 'نوع الملف غير مدعوم' }
+
   const sb = serviceClient()
   const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`
   const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path)
