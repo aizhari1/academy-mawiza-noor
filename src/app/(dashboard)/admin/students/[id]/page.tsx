@@ -2,19 +2,35 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { StudentActions } from './StudentActions'
+import { tenureLabel } from '@/lib/student-tenure'
+import { displaySessionInPackage } from '@/lib/dues'
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: student } = await supabase.from('students').select('*, teachers(id, name)').eq('id', id).single()
   if (!student) notFound()
 
   const { data: teachers } = await supabase.from('teachers').select('id, name').eq('is_active', true).order('name')
-  const { data: payments } = await supabase.from('payments').select('*').eq('student_id', id).order('payment_date', { ascending: false }).limit(10)
-  const { data: attendance } = await supabase.from('attendance').select('*').eq('student_id', id).order('session_date', { ascending: false }).limit(10)
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('student_id', id)
+    .order('payment_date', { ascending: false })
+    .limit(10)
+  const { data: attendance } = await supabase
+    .from('attendance')
+    .select('*')
+    .eq('student_id', id)
+    .order('session_date', { ascending: false })
+    .limit(10)
+
+  const { joinAr, tenure } = tenureLabel(student)
 
   return (
     <div className="min-h-dvh bg-[#f5f0e8] max-w-lg mx-auto">
@@ -32,37 +48,98 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       </header>
 
       <main className="px-4 pb-28">
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-3 grid grid-cols-2 gap-2 text-[13px]">
-          <div><span className="text-[#6f7974]">الحالة</span><p className="font-bold">{student.status}</p></div>
-          <div><span className="text-[#6f7974]">المعلم</span><p className="font-bold">{student.teachers?.name || '—'}</p></div>
-          <div><span className="text-[#6f7974]">المستحق</span><p className="font-bold text-[#ba1a1a]">{student.amount_due} {student.currency}</p></div>
-          <div><span className="text-[#6f7974]">آخر حلقة</span><p className="font-bold">{student.last_session_date || '—'}</p></div>
-          <div><span className="text-[#6f7974]">الهاتف</span><p className="font-bold" dir="ltr">{student.phone || '—'}</p></div>
-          <div><span className="text-[#6f7974]">البلد</span><p className="font-bold">{student.country || '—'}</p></div>
+        <div className="bg-[#e8f7f0] rounded-2xl p-3.5 mb-3 border border-[#cde8dc]">
+          <p className="text-[11px] font-bold mb-1" style={{ color: '#176b52' }}>
+            مدة الاشتراك (تلقائي)
+          </p>
+          <div className="flex justify-between items-end gap-2">
+            <div>
+              <p className="text-[12px]" style={{ color: '#6f7974' }}>
+                تاريخ الانضمام
+              </p>
+              <p className="text-[14px] font-bold" style={{ color: '#00513c' }}>
+                {joinAr}
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="text-[12px]" style={{ color: '#6f7974' }}>
+                بقاله
+              </p>
+              <p className="text-[16px] font-bold" style={{ color: '#176b52' }}>
+                {tenure}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <StudentActions studentId={student.id} currentStatus={student.status} currentTeacherId={student.teacher_id} teachers={teachers ?? []} />
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-3 space-y-1.5 text-[13px]">
+          <p>
+            <b>الحالة:</b> {student.status}
+          </p>
+          <p>
+            <b>المعلم:</b> {(student as any).teachers?.name || '—'}
+          </p>
+          <p>
+            <b>الهاتف:</b> {student.phone || '—'}
+          </p>
+          <p>
+            <b>الباقة:</b> {student.monthly_sessions || '—'} حصة · {student.price_per_session || '—'} ج
+          </p>
+          <p>
+            <b>آخر حصة:</b>{' '}
+            {student.last_session_num != null
+              ? student.monthly_sessions
+                ? `${displaySessionInPackage(student.last_session_num, student.monthly_sessions)} من ${student.monthly_sessions}`
+                : student.last_session_num
+              : '—'}
+          </p>
+          <p>
+            <b>المستحق:</b>{' '}
+            <span style={{ color: Number(student.amount_due) > 0 ? '#ba1a1a' : '#176b52' }}>
+              {Number(student.amount_due || 0).toLocaleString('ar-EG')} ج
+            </span>
+          </p>
+        </div>
+
+        <StudentActions
+          studentId={student.id}
+          studentName={student.name}
+          currentStatus={student.status}
+          currentTeacherId={student.teacher_id}
+          teachers={teachers ?? []}
+        />
 
         <h2 className="text-[14px] font-bold mt-5 mb-2">المدفوعات</h2>
         <div className="space-y-2 mb-4">
           {(payments ?? []).map((p) => (
             <div key={p.id} className="bg-white rounded-xl p-3 flex justify-between text-[13px]">
               <span>{p.payment_date}</span>
-              <span className="font-bold text-[#176b52]">{p.amount} {p.currency}</span>
+              <b>{Number(p.amount).toLocaleString('ar-EG')}</b>
             </div>
           ))}
+          {(!payments || payments.length === 0) && (
+            <p className="text-[12px] text-center" style={{ color: '#6f7974' }}>
+              لا مدفوعات
+            </p>
+          )}
         </div>
 
-        <h2 className="text-[14px] font-bold mb-2">الحضور</h2>
+        <h2 className="text-[14px] font-bold mb-2">آخر الحضور</h2>
         <div className="space-y-2">
           {(attendance ?? []).map((a) => (
-            <div key={a.id} className="bg-white rounded-xl p-3 text-[13px]">
-              <div className="flex justify-between">
-                <span>{a.session_date}</span>
-                <span className="font-bold">{a.status}</span>
-              </div>
+            <div key={a.id} className="bg-white rounded-xl p-3 flex justify-between text-[13px]">
+              <span>
+                {a.session_date}
+                {a.session_num != null ? ` · حصة ${a.session_num}` : ''}
+              </span>
+              <span>{a.status}</span>
             </div>
           ))}
+          {(!attendance || attendance.length === 0) && (
+            <p className="text-[12px] text-center" style={{ color: '#6f7974' }}>
+              لا حضور
+            </p>
+          )}
         </div>
       </main>
     </div>
