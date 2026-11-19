@@ -42,13 +42,13 @@ export function PayrollShare({
     L.push(`📅 الفترة: ${monthLabel}`)
     L.push('────────────────')
     L.push(`✅ إجمالي الحصص: *${totalSessions}*`)
-    L.push(`💰 المستحق: *${totalPay.toLocaleString('ar-EG')} ج*`)
+    L.push(`💰 المستحق: *${totalPay.toLocaleString('en-US')} ج*`)
     L.push('────────────────')
     for (const g of groups) {
       const sub = g.sessions.length * g.price
       L.push('')
       L.push(`👦 ${g.name} (${g.code})`)
-      L.push(`   ${g.sessions.length} حصة × ${g.price} ج = *${sub.toLocaleString('ar-EG')} ج*`)
+      L.push(`   ${g.sessions.length} حصة × ${g.price} ج = *${sub.toLocaleString('en-US')} ج*`)
       const dates = g.sessions.map((s) => s.date).slice(0, 15)
       if (dates.length) {
         L.push(`   📆 ${dates.join(' · ')}${g.sessions.length > 15 ? ' …' : ''}`)
@@ -56,7 +56,7 @@ export function PayrollShare({
     }
     L.push('')
     L.push('────────────────')
-    L.push(`📌 الإجمالي النهائي: *${totalPay.toLocaleString('ar-EG')} جنيه*`)
+    L.push(`📌 الإجمالي النهائي: *${totalPay.toLocaleString('en-US')} جنيه*`)
     L.push('جزاكم الله خيرًا 🌿')
     return L.join('\n')
   }, [teacherName, teacherCode, monthLabel, totalSessions, totalPay, groups])
@@ -79,16 +79,31 @@ export function PayrollShare({
   return (
     <div className="px-4 mb-4 space-y-2 print:hidden">
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={openWhatsApp} className="py-3 rounded-2xl text-white font-bold text-[13px] flex items-center justify-center gap-1" style={{ background: '#25D366' }}>
+        <button
+          type="button"
+          onClick={openWhatsApp}
+          className="py-3 rounded-2xl text-white font-bold text-[13px] flex items-center justify-center gap-1"
+          style={{ background: '#25D366' }}
+        >
           <span className="material-symbols-outlined text-[18px]">chat</span>
           واتساب
         </button>
-        <button type="button" onClick={printPdf} className="py-3 rounded-2xl text-white font-bold text-[13px] flex items-center justify-center gap-1" style={{ background: '#176b52' }}>
+        <button
+          type="button"
+          onClick={printPdf}
+          className="py-3 rounded-2xl text-white font-bold text-[13px] flex items-center justify-center gap-1"
+          style={{ background: '#176b52' }}
+        >
           <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
           PDF / طباعة
         </button>
       </div>
-      <button type="button" onClick={copyText} className="w-full py-2.5 rounded-2xl font-bold text-[12px] bg-white" style={{ border: '1px solid #cde8dc', color: '#176b52' }}>
+      <button
+        type="button"
+        onClick={copyText}
+        className="w-full py-2.5 rounded-2xl font-bold text-[12px] bg-white"
+        style={{ border: '1px solid #cde8dc', color: '#176b52' }}
+      >
         {copied ? '✓ تم نسخ الرسالة' : 'نسخ نص الرسالة'}
       </button>
       <details className="card p-3">
