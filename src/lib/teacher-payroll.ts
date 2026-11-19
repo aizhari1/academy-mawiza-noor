@@ -113,6 +113,7 @@ export async function computeTeacherPayroll(
   opts: { month?: string | null; teacherId?: string | null } = {}
 ): Promise<{ rows: TeacherPayRow[]; linesByTeacher: Record<string, SessionLine[]>; bounds: ReturnType<typeof monthBounds> }> {
   const bounds = monthBounds(opts.month == null || opts.month === '' ? currentMonthKey() : opts.month)
+
   const attendance = await fetchPresentAttendance(supabase, {
     start: bounds.start,
     end: bounds.end,
@@ -120,17 +121,21 @@ export async function computeTeacherPayroll(
     columns: 'id, teacher_id, student_id, session_date, status',
     studentCols: 'name, price_per_session',
   })
+
   const { data: rateLogs } = await supabase
     .from('activity_log')
     .select('entity_id, details')
     .eq('action', 'teacher_session_rate')
+
   const teacherDefaultRate: Record<string, number> = {}
   for (const r of rateLogs ?? []) {
     const rate = Number((r.details as any)?.session_rate || 0)
     if (r.entity_id && rate > 0) teacherDefaultRate[r.entity_id] = rate
   }
+
   const byTeacher: Record<string, { sessions: number; salary: number; rates: Record<number, number> }> = {}
   const linesByTeacher: Record<string, SessionLine[]> = {}
+
   for (const a of attendance) {
     if (!a.teacher_id) continue
     const st = a.students as any
@@ -147,6 +152,7 @@ export async function computeTeacherPayroll(
       rate,
     })
   }
+
   const rows: TeacherPayRow[] = Object.entries(byTeacher).map(([teacherId, agg]) => ({
     teacherId,
     teacherName: '',
@@ -157,6 +163,7 @@ export async function computeTeacherPayroll(
       .map(([rate, cnt]) => `${cnt}×${rate}`)
       .join(' + '),
   }))
+
   return { rows, linesByTeacher, bounds }
 }
 
