@@ -128,12 +128,8 @@ export default async function TeacherDashboard() {
             style={{ background: '#fff8e8', color: '#8a5a00' }}
           >
             {isStaff
-              ? 'أنت داخل بحساب الإدارة — ملف المعلم «' +
-                (teacher.name || '') +
-                '» فاضي من الطلاب. للتسميع: اخرج وادخل بحساب المعلم.'
-              : 'مفيش طلاب مرتبطين بيك حالياً. من الإشراف/الإدارة: تعديل طالب → اختَر المعلم «' +
-                (teacher.name || '') +
-                '».'}
+              ? 'أنت داخل بحساب الإدارة — ملف المعلم فاضي من الطلاب. للتسميع: اخرج وادخل بحساب المعلم.'
+              : 'مفيش طلاب مرتبطين بيك حالياً. من الإشراف/الإدارة: تعديل طالب → اختَر المعلم.'}
           </p>
           {isStaff && (
             <div className="flex gap-2 justify-center">
@@ -144,7 +140,11 @@ export default async function TeacherDashboard() {
               >
                 لوحة الإدارة
               </Link>
-              <Link href="/login" className="px-4 py-2 rounded-xl text-[12px] font-bold" style={{ background: '#e8f7f0', color: '#176b52' }}>
+              <Link
+                href="/login"
+                className="px-4 py-2 rounded-xl text-[12px] font-bold"
+                style={{ background: '#e8f7f0', color: '#176b52' }}
+              >
                 دخول كمعلم
               </Link>
             </div>
