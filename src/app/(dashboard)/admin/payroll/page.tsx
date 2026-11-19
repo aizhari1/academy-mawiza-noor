@@ -183,16 +183,28 @@ export default async function PayrollPage({
           <div className="card p-4 mb-4">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-[11px]" style={{ color: '#6f7974' }}>الحصص</p>
-                <p className="text-[20px] font-bold" style={{ color: '#00513c' }}>{totalSessions}</p>
+                <p className="text-[11px]" style={{ color: '#6f7974' }}>
+                  الحصص
+                </p>
+                <p className="text-[20px] font-bold" style={{ color: '#00513c' }}>
+                  {totalSessions}
+                </p>
               </div>
               <div>
-                <p className="text-[11px]" style={{ color: '#6f7974' }}>إجمالي الرواتب</p>
-                <p className="text-[20px] font-bold" style={{ color: '#176b52' }}>{totalSalary.toLocaleString('ar-EG')}</p>
+                <p className="text-[11px]" style={{ color: '#6f7974' }}>
+                  إجمالي الرواتب
+                </p>
+                <p className="text-[20px] font-bold" style={{ color: '#176b52' }}>
+                  {totalSalary.toLocaleString('ar-EG')}
+                </p>
               </div>
               <div>
-                <p className="text-[11px]" style={{ color: '#6f7974' }}>تم صرفه</p>
-                <p className="text-[20px] font-bold">{totalSettled.toLocaleString('ar-EG')}</p>
+                <p className="text-[11px]" style={{ color: '#6f7974' }}>
+                  تم صرفه
+                </p>
+                <p className="text-[20px] font-bold">
+                  {totalSettled.toLocaleString('ar-EG')}
+                </p>
               </div>
             </div>
           </div>
@@ -205,15 +217,25 @@ export default async function PayrollPage({
                     <div>
                       <p className="font-bold text-[14px]" style={{ color: '#00513c' }}>
                         {r.name}
-                        <span className="material-symbols-outlined text-[16px] align-middle mr-1" style={{ color: '#176b52' }}>chevron_left</span>
+                        <span
+                          className="material-symbols-outlined text-[16px] align-middle mr-1"
+                          style={{ color: '#176b52' }}
+                        >
+                          chevron_left
+                        </span>
                       </p>
                       <p className="text-[11px]" style={{ color: '#6f7974' }}>
-                        {r.code}{r.multiRate ? ' · أسعار متعددة' : ''}
+                        {r.code}
+                        {r.multiRate ? ' · أسعار متعددة' : ''}
                       </p>
                     </div>
                     <div className="text-left">
-                      <p className="text-[16px] font-bold" style={{ color: '#176b52' }}>{r.salary.toLocaleString('ar-EG')}</p>
-                      <p className="text-[10px]" style={{ color: '#6f7974' }}>المتبقي {r.remaining.toLocaleString('ar-EG')}</p>
+                      <p className="text-[16px] font-bold" style={{ color: '#176b52' }}>
+                        {r.salary.toLocaleString('ar-EG')}
+                      </p>
+                      <p className="text-[10px]" style={{ color: '#6f7974' }}>
+                        المتبقي {r.remaining.toLocaleString('ar-EG')}
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-[12px] mb-2">
@@ -247,7 +269,9 @@ export default async function PayrollPage({
               </div>
             ))}
             {rows.length === 0 && (
-              <p className="card p-6 text-center text-[13px]" style={{ color: '#6f7974' }}>مفيش معلمين نشطين</p>
+              <p className="card p-6 text-center text-[13px]" style={{ color: '#6f7974' }}>
+                مفيش معلمين نشطين
+              </p>
             )}
           </div>
         </main>
@@ -256,11 +280,19 @@ export default async function PayrollPage({
   } catch (e: any) {
     return (
       <div className="min-h-dvh max-w-lg mx-auto p-4" style={{ background: '#eefdf6' }}>
-        <a href="/admin" className="text-[13px] font-bold" style={{ color: '#176b52' }}>← رجوع</a>
+        <a href="/admin" className="text-[13px] font-bold" style={{ color: '#176b52' }}>
+          ← رجوع
+        </a>
         <p className="card p-4 mt-4 text-[13px]" style={{ color: '#93000a' }}>
           حصل خطأ في مسير الرواتب: {e?.message || 'غير معروف'}
         </p>
-        <a href="/admin/payroll" className="block mt-3 text-center font-bold py-3 rounded-xl text-white" style={{ background: '#176b52' }}>إعادة المحاولة</a>
+        <a
+          href="/admin/payroll"
+          className="block mt-3 text-center font-bold py-3 rounded-xl text-white"
+          style={{ background: '#176b52' }}
+        >
+          إعادة المحاولة
+        </a>
       </div>
     )
   }
