@@ -1,8 +1,6 @@
-/** حفظ الجلسة محليًا حتى يضغط المستخدم تسجيل خروج فقط */
-
 export const SESSION_BACKUP_KEY = 'mawiza_session_v1'
 export const ROLE_BACKUP_KEY = 'mawiza_role_v1'
-export const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // سنة
+export const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 export type SessionBackup = {
   access_token: string
