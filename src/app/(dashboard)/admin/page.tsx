@@ -9,6 +9,22 @@ import { OpenSettleButtons } from './OpenSettleButtons'
 
 export const dynamic = 'force-dynamic'
 
+async function safeCount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string,
+  filter?: (q: any) => any
+): Promise<number> {
+  try {
+    let q = supabase.from(table).select('*', { count: 'exact', head: true })
+    if (filter) q = filter(q)
+    const { count, error } = await q
+    if (error) return 0
+    return count ?? 0
+  } catch {
+    return 0
+  }
+}
+
 export default async function AdminDashboard({
   searchParams,
 }: {
@@ -24,23 +40,34 @@ export default async function AdminDashboard({
   try {
     await ensureMonthArchived()
   } catch {
-    /* متوقفش الصفحة لو الأرشفة فشلت */
+    /* ignore */
   }
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
 
-  const [
-    { count: active },
-    { count: paused },
-    { count: teachers },
-    { count: withdrawn },
-    summary,
-  ] = await Promise.all([
-    supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'نشط'),
-    supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'موقوف'),
-    supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'منسحب'),
-    getDuesSummary(supabase, sp.month),
+  let summary: {
+    monthKey: string
+    collected: number
+    dueTotal: number
+    dueCount: number
+  }
+  try {
+    summary = await getDuesSummary(supabase, sp.month)
+  } catch {
+    const { currentMonthKey } = await import('@/lib/dues')
+    summary = {
+      monthKey: currentMonthKey(),
+      collected: 0,
+      dueTotal: 0,
+      dueCount: 0,
+    }
+  }
+
+  const [active, paused, teachers, withdrawn] = await Promise.all([
+    safeCount(supabase, 'students', (q) => q.eq('status', 'نشط')),
+    safeCount(supabase, 'students', (q) => q.eq('status', 'موقوف')),
+    safeCount(supabase, 'teachers', (q) => q.eq('is_active', true)),
+    safeCount(supabase, 'students', (q) => q.eq('status', 'منسحب')),
   ])
 
   const monthKey = summary.monthKey
@@ -101,11 +128,21 @@ export default async function AdminDashboard({
         </Link>
       </header>
 
+      {(active === 0 && teachers === 0) && (
+        <div className="px-4 mb-3">
+          <div className="rounded-xl p-3 text-[12px] font-bold" style={{ background: '#fff8e8', color: '#8a5a00' }}>
+            قاعدة البيانات لسه فاضية. لازم تنفّذ ملف الهجرة{' '}
+            <code className="text-[11px]">supabase/migrations/001_minimal.sql</code> من SQL Editor في
+            Supabase عشان تظهر الطلاب والدفعات.
+          </div>
+        </div>
+      )}
+
       <div className="px-4 mb-4 grid grid-cols-3 gap-2">
         {[
-          { label: 'نشط', value: active ?? 0, color: '#176b52' },
-          { label: 'موقوف', value: paused ?? 0, color: '#b45309' },
-          { label: 'معلمون', value: teachers ?? 0, color: '#00513c' },
+          { label: 'نشط', value: active, color: '#176b52' },
+          { label: 'موقوف', value: paused, color: '#b45309' },
+          { label: 'معلمون', value: teachers, color: '#00513c' },
         ].map((s) => (
           <div key={s.label} className="card p-3 text-center">
             <p className="text-[20px] font-bold" style={{ color: s.color }}>
@@ -126,17 +163,17 @@ export default async function AdminDashboard({
           <div className="grid grid-cols-2 gap-3 text-[13px]">
             <div>
               <span style={{ color: '#6f7974' }}>محصّل: </span>
-              <b style={{ color: '#176b52' }}>{collected.toLocaleString('ar-EG')} ج</b>
+              <b style={{ color: '#176b52' }}>{collected.toLocaleString('en-US')} ج</b>
             </div>
             <div>
               <span style={{ color: '#6f7974' }}>مستحق: </span>
               <b style={{ color: '#b45309' }}>
-                {dueTotal.toLocaleString('ar-EG')} ج ({dueCount})
+                {dueTotal.toLocaleString('en-US')} ج ({dueCount})
               </b>
             </div>
             <div>
               <span style={{ color: '#6f7974' }}>منسحب: </span>
-              <b>{withdrawn ?? 0}</b>
+              <b>{withdrawn}</b>
             </div>
             <div>
               <a href={`/admin/monthly?month=${monthKey}`} style={{ color: '#176b52' }} className="font-bold">
