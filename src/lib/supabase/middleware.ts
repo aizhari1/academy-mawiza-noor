@@ -14,8 +14,9 @@ function homeForRole(r: string) {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plcynebifuyklfakzjyp.supabase.co'
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_q1Vwrqpk0VzVLKOW0R_8IA_lUNwoTvr'
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://piozgpqznyclihxxsufj.supabase.co'
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_RI0oKv_w26IzocHkJmrWiw_cvaSQeW0'
 
   const pathname = request.nextUrl.pathname
   const isPublic =
@@ -25,6 +26,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/evaluate') ||
     pathname.startsWith('/student') ||
     pathname.startsWith('/portal') ||
+    pathname.startsWith('/app') ||
     pathname.startsWith('/api/student-portal')
 
   if (
@@ -60,7 +62,9 @@ export async function updateSession(request: NextRequest) {
     const timeout = new Promise<{ data: { session: null } }>((resolve) =>
       setTimeout(() => resolve({ data: { session: null } }), 1500)
     )
-    const { data: { session } } = (await Promise.race([sessionPromise, timeout])) as any
+    const {
+      data: { session },
+    } = (await Promise.race([sessionPromise, timeout])) as any
     const user = session?.user
 
     if (!user && !isPublic) {
