@@ -1,207 +1,327 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { recordAttendance } from '@/app/actions/attendance'
+import { recordAttendance, getSessionPreview } from '@/app/actions/attendance'
+import { getMySessionRoom } from '@/app/actions/ensure-teacher'
 import Link from 'next/link'
+import { normalizePhone } from '@/lib/whatsapp'
+import { nextPackageSessionNum, packageSize } from '@/lib/dues'
 
 type Student = {
   id: string
   code: string
   name: string
-  status: string
-  last_session_num: number | null
-  subscription_type: string | null
-  monthly_sessions: number | null
   phone: string | null
+  last_session_num: number | null
+  monthly_sessions: number | null
+  subscription_type?: string | null
+  session_duration: number | null
 }
 
 export default function TeacherSessionPage() {
   const [students, setStudents] = useState<Student[]>([])
-  const [teacherId, setTeacherId] = useState<string | null>(null)
-  const [teacherName, setTeacherName] = useState('')
+  const [monthCounts, setMonthCounts] = useState<Record<string, number>>({})
   const [selected, setSelected] = useState<Student | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [lastReport, setLastReport] = useState<{ title: string; text: string } | null>(null)
-  const [scoreNew, setScoreNew] = useState('8')
-  const [scoreRecent, setScoreRecent] = useState('8')
-  const [scoreFar, setScoreFar] = useState('8')
-  const [newMem, setNewMem] = useState('')
-  const [recent, setRecent] = useState('')
-  const [far, setFar] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const [msg, setMsg] = useState('')
+  const [loadErr, setLoadErr] = useState('')
+  const [preview, setPreview] = useState('')
+  const [serverNum, setServerNum] = useState<number | null>(null)
+  const [todayExisting, setTodayExisting] = useState(false)
+  const previewFor = useRef<string | null>(null)
+
+  const [hifzFrom, setHifzFrom] = useState('')
+  const [hifzTo, setHifzTo] = useState('')
+  const [murajaFrom, setMurajaFrom] = useState('')
+  const [murajaTo, setMurajaTo] = useState('')
+  const [tajweed, setTajweed] = useState('')
   const [tarbiya, setTarbiya] = useState('')
   const [sharii, setSharii] = useState('')
   const [attend, setAttend] = useState('تم الحضور')
   const [duration, setDuration] = useState('30')
-  const [preview, setPreview] = useState('')
-  const [msg, setMsg] = useState('')
-  const [isPending, startTransition] = useTransition()
+  const [rating, setRating] = useState('5')
+  const [teacherId, setTeacherId] = useState<string | null>(null)
+  const [teacherName, setTeacherName] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [scoreNew, setScoreNew] = useState('10')
+  const [scoreRecent, setScoreRecent] = useState('10')
+  const [scoreFar, setScoreFar] = useState('10')
+  const [newMem, setNewMem] = useState('')
+  const [recentPast, setRecentPast] = useState('')
+  const [farPast, setFarPast] = useState('')
+  const [arabicLang, setArabicLang] = useState('')
+  const showFormRef = useRef(false)
 
-  useEffect(() => {
-    const supabase = createClient()
-    ;(async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
-      setTeacherName(profile?.full_name || '')
-      const { data: teacher } = await supabase.from('teachers').select('id, name').eq('profile_id', user.id).maybeSingle()
-      if (teacher) {
-        setTeacherId(teacher.id)
-        if (teacher.name) setTeacherName(teacher.name)
-        const { data } = await supabase
-          .from('students')
-          .select('id, code, name, status, last_session_num, subscription_type, monthly_sessions, phone')
-          .eq('teacher_id', teacher.id)
-          .eq('status', 'نشط')
-          .order('name')
-        setStudents(data ?? [])
+  async function loadRoom() {
+    setLoadErr('')
+    setStudents([])
+    try {
+      const room = await getMySessionRoom()
+      if (room.teacher?.id) {
+        setTeacherId(room.teacher.id)
+        setTeacherName(room.teacher.name || '')
       }
-    })()
-  }, [])
-
-  function openReport(s: Student, status: string) {
-    setSelected(s)
-    setAttend(status)
-    setNewMem('')
-    setRecent('')
-    setFar('')
-    setTarbiya('')
-    setSharii('')
-    setScoreNew('8')
-    setScoreRecent('8')
-    setScoreFar('8')
-    setMsg('')
-    setShowForm(true)
-    setTimeout(() => buildPreview(s, status), 50)
+      if (room.error && !(room.students && room.students.length)) {
+        setLoadErr(room.error)
+        return
+      }
+      const list = (room.students || []) as Student[]
+      setStudents(list)
+      setMonthCounts(((room as any).monthCounts || {}) as Record<string, number>)
+      if (!list.length) setLoadErr(room.error || 'مفيش طلاب نشطين مربوطين بيك')
+    } catch (e: any) {
+      const m = String(e?.message || '')
+      if (m.includes('Failed to fetch') || m.includes('NetworkError') || m.includes('fetch')) {
+        setLoadErr('مشكلة شبكة أو السيرفر مش جاهز — انتظر دقيقة واضغط إعادة المحاولة')
+      } else {
+        setLoadErr(m || 'فشل تحميل غرفة التسميع')
+      }
+    }
   }
 
-  function buildPreview(s?: Student | null, statusOverride?: string) {
-    const st = s || selected
-    if (!st) return ''
-    const att = statusOverride || attend
-    let sessionNum = Number(st.last_session_num) || 0
-    if (att === 'تم الحضور' || att === 'متأخر') {
-      sessionNum += 1
-      const q = Number(st.monthly_sessions) || parseInt(String(st.subscription_type || '').replace(/\D/g, ''), 10) || 0
-      if (q > 0 && sessionNum > q) sessionNum = 1
+  useEffect(() => {
+    loadRoom()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !showFormRef.current) loadRoom()
     }
-    if (sessionNum < 1) sessionNum = 1
-    const dateStr = new Date().toLocaleDateString('ar-EG')
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function freshStudent(id: string) {
+    try {
+      const room = await getMySessionRoom()
+      if ((room as any).monthCounts) setMonthCounts((room as any).monthCounts)
+      const row = (room.students || []).find((x: any) => x.id === id)
+      if (!row) return
+      setStudents((prev) => prev.map((x) => (x.id === id ? { ...x, ...(row as any) } : x)))
+      setSelected((cur) => (cur && cur.id === id ? { ...cur, ...(row as any) } : cur))
+    } catch {
+      /* */
+    }
+  }
+
+  function openReport(s: Student, status: string) {
+    void freshStudent(s.id)
+    setSelected(s)
+    setAttend(status === 'لم يحضر' ? 'لم يحضر' : 'تم الحضور')
+    setDuration(String(s.session_duration || 30))
+    setHifzFrom('')
+    setHifzTo('')
+    setMurajaFrom('')
+    setMurajaTo('')
+    setTajweed('')
+    setTarbiya('')
+    setSharii('')
+    setRating('5')
+    setSaved(false)
+    setCopied(false)
+    setScoreNew('10')
+    setScoreRecent('10')
+    setScoreFar('10')
+    setNewMem('')
+    setRecentPast('')
+    setFarPast('')
+    setArabicLang('')
+    setPreview('')
+    setMsg('')
+    setShowForm(true)
+    setServerNum(null)
+    setTodayExisting(false)
+    previewFor.current = s.id
+    getSessionPreview(s.id).then((r: any) => {
+      if (previewFor.current === s.id && typeof r?.sessionNum === 'number') {
+        setServerNum(r.sessionNum)
+        setTodayExisting(!!r.alreadyToday)
+      }
+    })
+  }
+
+  const DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+
+  function buildPreview() {
+    if (!selected) return ''
+    const now = new Date()
+    const present = attend === 'تم الحضور' || attend === 'متأخر'
+    const quota = packageSize(selected)
+    const localNext = nextPackageSessionNum(selected.last_session_num || 0, quota).next
+    let sessionNum = selected.last_session_num || 0
+    if (present && serverNum != null) {
+      sessionNum = serverNum
+      if (!todayExisting && sessionNum < localNext) sessionNum = localNext
+    } else if (present) {
+      sessionNum = localNext
+    } else if (sessionNum < 1) {
+      sessionNum = 1
+    }
+    const sc = (v: string) => (v === '' ? '—' : `${v} / 10`)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const line = 'ـــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ'
     const text = [
-      '*💦أكاديمية موعظة ونور💦*', '',
-      '🌺 المعلم : ' + teacherName, '',
-      '🌺 الطالب : ' + st.name, '',
+      '*💦موعظة ونور💦*',
+      '',
+      '🌺 المعلم : ' + (teacherName || ''),
+      '',
+      '🌺 الطالب : ' + selected.name,
+      '',
       '*التقييم*',
-      '✅️ درجة الحفظ الجديد: ' + (scoreNew || '—') + ' / 10', '',
-      '✅️ درجة الماضي القريب: ' + (scoreRecent || '—') + ' / 10', '',
-      '✅️ درجة الماضي البعيد: ' + (scoreFar || '—') + ' / 10', '',
-      '📚 التربوي: ' + (tarbiya || '—'), '',
-      '📖 الشرعي: ' + (sharii || '—'),
-      'ـــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ',
+      '✅️ درجة الحفظ الجديد: ' + sc(scoreNew),
+      '',
+      '✅️ درجة الماضي القريب: ' + sc(scoreRecent),
+      '',
+      '✅️ درجة الماضي البعيد: ' + sc(scoreFar),
+      '',
+      '📚 التربوي: ' + (tarbiya.trim() || '—'),
+      '',
+      '📖 الشرعي: ' + (sharii.trim() || '—'),
+      line,
       '*الواجب القادم*',
-      '🌱 الحفظ الجديد: ' + (newMem || '—'), '',
-      '🌱 الماضي القريب: ' + (recent || '—'), '',
-      '🌱 الماضي البعيد: ' + (far || '—'), '',
-      'ـــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ',
-      '📅 التاريخ: ' + dateStr,
-      '⏱ المدة: ' + duration + ' دقيقة',
-      '📌 الحضور: ' + att,
-      '🔢 رقم الحصة: ' + sessionNum, '',
-      'جزاكم الله خيراً ✨',
-      'أكاديمية موعظة ونور',
+      '🌱 الحفظ الجديد: ' + (newMem.trim() || '—'),
+      '',
+      '🌱 الماضي القريب: ' + (recentPast.trim() || '—'),
+      '',
+      '🌱 الماضي البعيد: ' + (farPast.trim() || '—'),
+      '',
+      '',
+      '',
+      '',
+      '',
+      line,
+      '🗓 حلقة يوم: ' + DAYS[now.getDay()],
+      '',
+      '📝 الموافق: ' + `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`,
+      '',
+      '#️⃣ رقم الحلقة: ' + sessionNum + (quota > 0 ? `/${quota}` : ''),
+      '',
+      '📋 الحضور: ' + attend,
+      '',
+      '⏱️ مدة الحلقة: ' + (duration || '60'),
+      '',
+      'وتزودوا فإن خير الزاد التقوى 🌹🌹🌹',
     ].join('\n')
     setPreview(text)
     return text
   }
 
+  useEffect(() => {
+    showFormRef.current = showForm
+  }, [showForm])
+
+  useEffect(() => {
+    if (selected && showForm && !saved) buildPreview()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selected,
+    showForm,
+    saved,
+    attend,
+    duration,
+    scoreNew,
+    scoreRecent,
+    scoreFar,
+    tarbiya,
+    sharii,
+    newMem,
+    recentPast,
+    farPast,
+    arabicLang,
+    teacherName,
+    serverNum,
+    todayExisting,
+  ])
+
   function save() {
     if (!selected) return
-    if ((attend === 'تم الحضور' || attend === 'متأخر') && !newMem.trim()) {
-      setMsg('اكتب الحفظ الجديد')
+    if (attend !== 'لم يحضر' && !newMem.trim()) {
+      setMsg('اكتب الحفظ الجديد (الواجب القادم).')
       return
     }
-    const text = buildPreview() || preview
+    const text = buildPreview()
+    const statusMap: Record<string, string> = {
+      'تم الحضور': 'حاضر',
+      'لم يحضر': 'غائب',
+      متأخر: 'متأخر',
+    }
     startTransition(async () => {
-      const statusMap: Record<string, string> = {
-        'تم الحضور': 'حاضر',
-        'لم يحضر': 'غائب',
-        متأخر: 'متأخر',
-      }
-      const scores = [Number(scoreNew), Number(scoreRecent), Number(scoreFar)].filter((n) => n > 0)
-      const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 5
-
-      const r = await recordAttendance({
+      const res = await recordAttendance({
         student_id: selected.id,
+        status: statusMap[attend] || 'حاضر',
         teacher_id: teacherId,
-        status: statusMap[attend] || attend,
-        hifz_from: newMem,
-        muraja_from: recent,
-        muraja_to: far,
-        tajweed_notes: sharii,
-        rating: Math.round(avg),
+        session_duration: Number(duration) || null,
+        score_new: attend === 'لم يحضر' ? null : Number(scoreNew),
+        score_recent: attend === 'لم يحضر' ? null : Number(scoreRecent),
+        score_far: attend === 'لم يحضر' ? null : Number(scoreFar),
+        new_memorization: newMem || null,
+        recent_past: recentPast || null,
+        far_past: farPast || null,
+        arabic_lang: arabicLang || null,
+        tarbiya_note: tarbiya || null,
+        sharii_note: sharii || null,
+        hifz_from: hifzFrom || null,
+        hifz_to: hifzTo || null,
+        muraja_from: murajaFrom || null,
+        muraja_to: murajaTo || null,
+        tajweed_notes: tajweed || null,
+        rating: Number(rating) || null,
+        notes: text,
         report_text: text,
-        notes: tarbiya,
-        score_new: Number(scoreNew) || null,
-        score_recent: Number(scoreRecent) || null,
-        score_far: Number(scoreFar) || null,
-      })
-      if ((r as any).error) {
-        setMsg((r as any).error)
+      } as any)
+      if ((res as any)?.error) {
+        setMsg('خطأ: ' + (res as any).error)
         return
       }
-      setMsg((r as any).message || 'تم الحفظ')
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.id === selected.id && (attend === 'تم الحضور' || attend === 'متأخر')
-            ? { ...s, last_session_num: (Number(s.last_session_num) || 0) + 1 }
-            : s
+      const nextNum = (res as any)?.next_session_num
+      let finalText = (res as any)?.data?.notes || text
+      if (typeof nextNum === 'number' && finalText) {
+        finalText = finalText.replace(/رقم الحلقة:\s*\d+/g, `رقم الحلقة: ${nextNum}`)
+      }
+      setPreview(finalText)
+      setSaved(true)
+      setMsg('✓ ' + ((res as any)?.message || 'تم الحفظ'))
+      void freshStudent(selected.id)
+      if (typeof nextNum === 'number') {
+        setServerNum(nextNum)
+        setStudents((prev) =>
+          prev.map((s) => (s.id === selected.id ? { ...s, last_session_num: nextNum } : s))
         )
-      )
-      setTimeout(() => {
-        setShowForm(false)
-        setSelected(null)
-      }, 900)
+        setSelected((s) => (s ? { ...s, last_session_num: nextNum } : s))
+      }
     })
-  }
-
-  async function showLast(s: Student) {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('attendance')
-      .select('notes, session_date')
-      .eq('student_id', s.id)
-      .order('session_date', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!data?.notes) {
-      setLastReport({ title: s.name, text: 'لا يوجد تقرير سابق' })
-      return
-    }
-    setLastReport({ title: `آخر تقرير — ${s.name} (${data.session_date})`, text: data.notes })
   }
 
   function copyText(t: string) {
     navigator.clipboard?.writeText(t)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
   }
 
-  function waText(t: string, phone?: string | null) {
-    let p = String(phone || '').replace(/\D/g, '')
-    if (p.startsWith('0')) p = '20' + p.slice(1)
-    const url = p
-      ? `https://wa.me/${p}?text=${encodeURIComponent(t)}`
-      : `https://wa.me/?text=${encodeURIComponent(t)}`
-    window.open(url, '_blank')
+  function waText(t: string, phone: string | null) {
+    const p = normalizePhone(phone)
+    if (!p) {
+      copyText(t)
+      setMsg('رقم ولي الأمر غير موجود أو غير صالح — تم نسخ التقرير')
+      return
+    }
+    window.open(`https://wa.me/${p}?text=${encodeURIComponent(t)}`, '_blank')
   }
 
   return (
-    <div className="min-h-dvh max-w-lg mx-auto pb-10" style={{ background: '#eefdf6' }}>
+    <div className="min-h-dvh max-w-lg mx-auto pb-24" style={{ background: '#eefdf6' }}>
       <header className="px-4 py-3 flex items-center gap-3">
         <Link href="/teacher" className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm">
           <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
         </Link>
         <div>
-          <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>تقرير الحلقة</h1>
-          <p className="text-[11px]" style={{ color: '#6f7974' }}>حضور + تقرير — حصة واحدة في اليوم</p>
+          <h1 className="text-[16px] font-bold" style={{ color: '#00513c' }}>
+            غرفة التسميع
+          </h1>
+          <p className="text-[11px]" style={{ color: '#6f7974' }}>
+            تسجيل الحضور — حصة واحدة في اليوم
+          </p>
         </div>
       </header>
 
@@ -211,59 +331,141 @@ export default function TeacherSessionPage() {
             <div className="mb-2">
               <p className="font-bold text-[14px]">{s.name}</p>
               <p className="text-[11px]" style={{ color: '#6f7974' }}>
-                {s.code} · حصة {s.last_session_num ?? 0}
-                {s.monthly_sessions ? ` / ${s.monthly_sessions}` : ''}
+                {s.code}
+                {' · حصصك مع الطالب: '}
+                {monthCounts[s.id] || 0}
+                {' · رقم التقرير الجاي: '}
+                {nextPackageSessionNum(s.last_session_num ?? 0, packageSize(s)).next}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => openReport(s, 'تم الحضور')} className="px-3 py-1.5 rounded-full text-[12px] font-bold text-white" style={{ background: '#176b52' }}>
-                ✓ حضور + تقرير
+              <button
+                type="button"
+                onClick={() => openReport(s, 'تم الحضور')}
+                className="px-3 py-1.5 rounded-full text-[12px] font-bold text-white"
+                style={{ background: '#176b52' }}
+              >
+                ✓ حضور
               </button>
-              <button type="button" onClick={() => openReport(s, 'لم يحضر')} className="px-3 py-1.5 rounded-full text-[12px] font-bold text-white" style={{ background: '#ba1a1a' }}>
-                ✗ غياب + تقرير
-              </button>
-              <button type="button" onClick={() => showLast(s)} className="px-3 py-1.5 rounded-full text-[12px] font-bold" style={{ background: '#efe9d8', color: '#3a3a2a' }}>
-                📄 آخر تقرير
+              <button
+                type="button"
+                onClick={() => openReport(s, 'لم يحضر')}
+                className="px-3 py-1.5 rounded-full text-[12px] font-bold"
+                style={{ background: '#ffdad6', color: '#93000a' }}
+              >
+                ✗ غياب
               </button>
             </div>
           </div>
         ))}
-        {students.length === 0 && (
-          <p className="text-center text-[13px] py-10" style={{ color: '#6f7974' }}>لا طلاب نشطين مرتبطين بحسابك</p>
+        {loadErr && (
+          <div className="text-center py-4 px-3 rounded-xl" style={{ background: '#fff8e8' }}>
+            <p className="text-[13px] font-bold mb-2" style={{ color: '#8a5a00' }}>
+              {loadErr}
+            </p>
+            <button
+              type="button"
+              onClick={() => loadRoom()}
+              className="px-4 py-2 rounded-xl text-[13px] font-bold text-white"
+              style={{ background: '#176b52' }}
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        )}
+        {students.length === 0 && !loadErr && (
+          <p className="text-center text-[13px] py-10" style={{ color: '#6f7974' }}>
+            لا طلاب نشطين مرتبطين بحسابك
+          </p>
         )}
       </main>
 
       {showForm && selected && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,.45)' }}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,.45)' }}
+        >
           <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white p-4">
             <div className="flex justify-between items-center mb-3">
-              <h2 className="font-bold text-[15px]" style={{ color: '#00513c' }}>تقرير الحلقة — {selected.name}</h2>
-              <button type="button" onClick={() => setShowForm(false)} className="material-symbols-outlined">close</button>
+              <h2 className="font-bold text-[15px]" style={{ color: '#00513c' }}>
+                حصة — {selected.name}
+                {serverNum != null ? ` · رقم ${serverNum}` : ''}
+              </h2>
+              <button type="button" onClick={() => setShowForm(false)} className="material-symbols-outlined">
+                close
+              </button>
+            </div>
+            {todayExisting && (
+              <p
+                className="text-[12px] font-bold px-3 py-2 rounded-xl mb-2"
+                style={{ background: '#fff4d6', color: '#7a5600' }}
+              >
+                عنده تقرير النهارده بالفعل (حصة {serverNum}) — الحفظ هيعدّل نفس التقرير ومش هيضيف حصة جديدة.
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <label className="text-[12px] font-bold block">الحفظ من</label>
+                <input className="input mb-2" value={hifzFrom} onChange={(e) => setHifzFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold block">الحفظ إلى</label>
+                <input className="input mb-2" value={hifzTo} onChange={(e) => setHifzTo(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <label className="text-[12px] font-bold block">المراجعة من</label>
+                <input className="input mb-2" value={murajaFrom} onChange={(e) => setMurajaFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold block">المراجعة إلى</label>
+                <input className="input mb-2" value={murajaTo} onChange={(e) => setMurajaTo(e.target.value)} />
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <div>
-                <label className="text-[11px] font-bold">حفظ جديد /10</label>
-                <input className="input text-center" type="number" min={0} max={10} value={scoreNew} onChange={(e) => setScoreNew(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold">ماضي قريب /10</label>
-                <input className="input text-center" type="number" min={0} max={10} value={scoreRecent} onChange={(e) => setScoreRecent(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold">ماضي بعيد /10</label>
-                <input className="input text-center" type="number" min={0} max={10} value={scoreFar} onChange={(e) => setScoreFar(e.target.value)} />
-              </div>
-            </div>
+            <label className="text-[12px] font-bold block">التجويد</label>
+            <input className="input mb-2" value={tajweed} onChange={(e) => setTajweed(e.target.value)} />
 
-            <label className="text-[12px] font-bold block">الحفظ الجديد</label>
-            <input className="input mb-2" value={newMem} onChange={(e) => setNewMem(e.target.value)} placeholder="سورة الدخان من 18 إلى 39" />
-
-            <label className="text-[12px] font-bold block">الماضي القريب</label>
-            <input className="input mb-2" value={recent} onChange={(e) => setRecent(e.target.value)} />
-
-            <label className="text-[12px] font-bold block">الماضي البعيد</label>
-            <input className="input mb-2" value={far} onChange={(e) => setFar(e.target.value)} />
+            {attend !== 'لم يحضر' && (
+              <>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {(
+                    [
+                      ['درجة الحفظ الجديد', scoreNew, setScoreNew],
+                      ['درجة الماضي القريب', scoreRecent, setScoreRecent],
+                      ['درجة الماضي البعيد', scoreFar, setScoreFar],
+                    ] as const
+                  ).map(([l, v, set]) => (
+                    <div key={l}>
+                      <label className="text-[11px] font-bold block">{l} (من 10)</label>
+                      <input
+                        className="input"
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={v}
+                        onChange={(e) => set(e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <label className="text-[12px] font-bold block">الحفظ الجديد (الواجب)</label>
+                <input
+                  className="input mb-2"
+                  value={newMem}
+                  onChange={(e) => setNewMem(e.target.value)}
+                  placeholder="سورة الدخان من 18 إلى 39"
+                />
+                <label className="text-[12px] font-bold block">الماضي القريب</label>
+                <input className="input mb-2" value={recentPast} onChange={(e) => setRecentPast(e.target.value)} />
+                <label className="text-[12px] font-bold block">الماضي البعيد</label>
+                <input className="input mb-2" value={farPast} onChange={(e) => setFarPast(e.target.value)} />
+                <label className="text-[12px] font-bold block">لغة عربية</label>
+                <input className="input mb-2" value={arabicLang} onChange={(e) => setArabicLang(e.target.value)} />
+              </>
+            )}
 
             <label className="text-[12px] font-bold block">البيان التربوي</label>
             <input className="input mb-2" value={tarbiya} onChange={(e) => setTarbiya(e.target.value)} />
@@ -276,8 +478,8 @@ export default function TeacherSessionPage() {
                 <label className="text-[12px] font-bold block">الحضور</label>
                 <select className="input" value={attend} onChange={(e) => setAttend(e.target.value)}>
                   <option value="تم الحضور">تم الحضور</option>
-                  <option value="لم يحضر">لم يحضر</option>
                   <option value="متأخر">متأخر</option>
+                  <option value="لم يحضر">لم يحضر</option>
                 </select>
               </div>
               <div>
@@ -286,36 +488,61 @@ export default function TeacherSessionPage() {
               </div>
             </div>
 
-            <label className="text-[12px] font-bold block">معاينة التقرير</label>
-            <textarea className="input min-h-[160px] text-[12px] leading-relaxed mb-2" readOnly value={preview} dir="rtl" />
+            <label className="text-[12px] font-bold block">التقييم</label>
+            <select className="input mb-2" value={rating} onChange={(e) => setRating(e.target.value)}>
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+
+            <label className="text-[12px] font-bold block">معاينة</label>
+            <textarea className="input min-h-[140px] text-[12px] leading-relaxed mb-2" readOnly value={preview} dir="rtl" />
 
             <div className="flex flex-col gap-2">
-              <button type="button" className="btn-primary py-2.5" onClick={() => buildPreview()}>تحديث المعاينة</button>
-              <button type="button" className="btn-primary py-2.5" disabled={isPending} onClick={save}>
-                {isPending ? 'جاري الحفظ...' : 'حفظ التقرير والحضور'}
+              {!saved && (
+                <>
+                  <button type="button" className="btn-primary py-2.5" onClick={() => buildPreview()}>
+                    تحديث المعاينة
+                  </button>
+                  <button type="button" className="btn-primary py-2.5" disabled={isPending} onClick={save}>
+                    {isPending ? 'جاري الحفظ...' : 'حفظ الحضور'}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn-primary py-2.5"
+                onClick={() => copyText(saved ? preview : buildPreview())}
+              >
+                {copied ? '✓ تم النسخ' : 'نسخ التقرير'}
               </button>
-              <button type="button" className="py-2.5 rounded-lg font-bold text-[13px]" style={{ background: '#c5a45d', color: '#fff' }} onClick={() => copyText(preview || buildPreview())}>
-                نسخ التقرير
-              </button>
-              <button type="button" className="py-2.5 rounded-lg font-bold text-[13px] text-white" style={{ background: '#25D366' }} onClick={() => waText(preview || buildPreview(), selected.phone)}>
+              <button
+                type="button"
+                className="btn-primary py-2.5"
+                style={{ background: '#25D366' }}
+                onClick={() => waText(saved ? preview : buildPreview(), selected.phone)}
+              >
                 إرسال واتساب
               </button>
-              <button type="button" className="py-2 text-[13px]" onClick={() => setShowForm(false)}>إلغاء</button>
+              <button
+                type="button"
+                className="py-2.5 text-[13px] font-bold"
+                style={{ color: '#6f7974' }}
+                onClick={() => setShowForm(false)}
+              >
+                إغلاق
+              </button>
             </div>
-            {msg && <p className="text-[13px] font-bold mt-2" style={{ color: '#176b52' }}>{msg}</p>}
-          </div>
-        </div>
-      )}
-
-      {lastReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.45)' }}>
-          <div className="card w-full max-w-md p-4">
-            <h3 className="font-bold mb-2 text-[14px]">{lastReport.title}</h3>
-            <textarea className="input min-h-[200px] text-[12px]" readOnly value={lastReport.text} />
-            <div className="flex gap-2 mt-3">
-              <button type="button" className="btn-primary flex-1 py-2" onClick={() => copyText(lastReport.text)}>نسخ</button>
-              <button type="button" className="flex-1 py-2 rounded-lg font-bold" style={{ background: '#e8f7f0' }} onClick={() => setLastReport(null)}>إغلاق</button>
-            </div>
+            {msg && (
+              <p
+                className="mt-3 text-center text-[13px] font-bold"
+                style={{ color: msg.startsWith('خطأ') ? '#ba1a1a' : '#176b52' }}
+              >
+                {msg}
+              </p>
+            )}
           </div>
         </div>
       )}
