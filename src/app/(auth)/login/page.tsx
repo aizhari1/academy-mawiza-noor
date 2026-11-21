@@ -118,12 +118,17 @@ function LoginForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="text-center mb-6">
-        <img
-          src={BRAND_LOGO_SRC}
-          alt={BRAND_NAME}
-          className="mx-auto mb-3 object-contain"
-          style={{ width: 160, height: 160 }}
-        />
+        <div
+          className="mx-auto mb-3 rounded-2xl overflow-hidden flex items-center justify-center"
+          style={{ width: 220, height: 100, background: '#000' }}
+        >
+          <img
+            src={BRAND_LOGO_SRC}
+            alt={BRAND_NAME}
+            className="object-contain"
+            style={{ width: 200, height: 90 }}
+          />
+        </div>
         <h1 className="text-[22px] font-bold" style={{ color: '#00513c' }}>
           {roleTitle}
         </h1>

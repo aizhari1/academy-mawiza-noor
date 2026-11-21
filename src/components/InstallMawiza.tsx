@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { BRAND_ICON_192, BRAND_NAME } from '@/lib/brand-logo'
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>
@@ -150,15 +151,15 @@ export function InstallMawiza() {
     >
       <div className="install-banner-inner mx-auto max-w-md rounded-2xl shadow-2xl flex items-center gap-3 p-3">
         <img
-          src="/icons/icon-192.png"
-          alt="موعظة ونور"
+          src={BRAND_ICON_192}
+          alt={BRAND_NAME}
           width={48}
           height={48}
-          className="rounded-xl bg-white object-contain flex-shrink-0"
-          style={{ width: 48, height: 48 }}
+          className="rounded-xl object-contain flex-shrink-0"
+          style={{ width: 48, height: 48, background: '#000' }}
         />
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-[14px] leading-tight">تثبيت موعظة ونور</p>
+          <p className="font-bold text-[14px] leading-tight">تثبيت {BRAND_NAME}</p>
           <p className="text-[11px] opacity-90 leading-snug mt-0.5">مرة واحدة — للوصول السريع كتطبيق</p>
         </div>
         <button

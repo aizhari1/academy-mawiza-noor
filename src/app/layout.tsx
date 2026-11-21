@@ -4,22 +4,23 @@ import '@/lib/force-latin-digits'
 import { SessionRestorer } from '@/components/SessionRestorer'
 import { InstallMawiza } from '@/components/InstallMawiza'
 import { ThemeToggle, THEME_INIT_SCRIPT } from '@/components/ThemeToggle'
+import { BRAND_ICON_192, BRAND_ICON_512, BRAND_APPLE_TOUCH, BRAND_NAME } from '@/lib/brand-logo'
 
 export const metadata: Metadata = {
   title: 'أكاديمية موعظة ونور',
   description: 'نظام إدارة أكاديمية موعظة ونور — تحفيظ القرآن الكريم',
-  applicationName: 'موعظة ونور',
+  applicationName: BRAND_NAME,
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/jpeg' },
-      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/jpeg' },
+      { url: BRAND_ICON_192, sizes: '192x192', type: 'image/png' },
+      { url: BRAND_ICON_512, sizes: '512x512', type: 'image/png' },
     ],
-    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/jpeg' }],
+    apple: [{ url: BRAND_APPLE_TOUCH, sizes: '180x180', type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,
-    title: 'موعظة ونور',
+    title: BRAND_NAME,
     statusBarStyle: 'default',
   },
 }
@@ -59,8 +60,8 @@ export default function RootLayout({
 `,
           }}
         />
-        <link rel="icon" href="/icons/icon-192.png" type="image/jpeg" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" href={BRAND_ICON_192} type="image/png" />
+        <link rel="apple-touch-icon" href={BRAND_APPLE_TOUCH} />
         <link
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
           rel="stylesheet"
