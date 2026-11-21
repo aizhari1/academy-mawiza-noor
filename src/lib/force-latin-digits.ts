@@ -1,8 +1,3 @@
-/**
- * يفرض الأرقام الإنجليزية (0-9) في كل toLocaleString / NumberFormat
- * حتى لو الكود طلب ar-EG — عشان الحساب يكون موحّد وواضح.
- */
-
 const ORIG_NUM = Number.prototype.toLocaleString
 Number.prototype.toLocaleString = function (
   this: number,

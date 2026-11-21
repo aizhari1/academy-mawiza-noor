@@ -45,7 +45,9 @@ export async function getMySessionRoom() {
 
   const { data, error } = await sb
     .from('students')
-    .select('id, code, name, phone, last_session_num, monthly_sessions, session_duration, subscription_type, status')
+    .select(
+      'id, code, name, phone, last_session_num, monthly_sessions, session_duration, subscription_type, status'
+    )
     .eq('teacher_id', teacher.id)
     .eq('status', 'نشط')
     .order('name')
@@ -82,7 +84,7 @@ export async function getMySessionRoom() {
       if (a.student_id) monthCounts[a.student_id] = (monthCounts[a.student_id] || 0) + 1
     }
   } catch {
-    /* العدّ مش حرج */
+    /* */
   }
 
   return { teacher, students, monthCounts, error: null }

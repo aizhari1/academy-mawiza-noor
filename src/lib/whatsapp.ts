@@ -1,4 +1,3 @@
-/** يرجّع رقم واتساب دولي صالح أو '' لو الرقم مش صالح. */
 export function normalizePhone(phone: string | null | undefined): string {
   let p = String(phone || '').replace(/[^\d+]/g, '')
   if (!p) return ''

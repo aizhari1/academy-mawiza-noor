@@ -4,9 +4,6 @@ import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSessionBackup, saveSessionBackup, loadRoleBackup, saveRoleBackup } from '@/lib/session-persist'
 
-/**
- * يستعيد الجلسة من localStorage لو الكوكي اختفت مؤقتًا (تحديث / WebView).
- */
 export function SessionRestorer() {
   useEffect(() => {
     let cancelled = false

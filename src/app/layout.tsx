@@ -1,30 +1,68 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import '@/lib/force-latin-digits'
+import { SessionRestorer } from '@/components/SessionRestorer'
+import { InstallMawiza } from '@/components/InstallMawiza'
+import { ThemeToggle, THEME_INIT_SCRIPT } from '@/components/ThemeToggle'
 
 export const metadata: Metadata = {
   title: 'أكاديمية موعظة ونور',
   description: 'نظام إدارة أكاديمية موعظة ونور — تحفيظ القرآن الكريم',
+  applicationName: 'موعظة ونور',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/jpeg' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/jpeg' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/jpeg' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'موعظة ونور',
+    statusBarStyle: 'default',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#176b52',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#176b52' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d1a15' },
+  ],
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://plcynebifuyklfakzjyp.supabase.co" />
-        <link rel="dns-prefetch" href="https://plcynebifuyklfakzjyp.supabase.co" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function(){
+  try {
+    var o = Number.prototype.toLocaleString;
+    Number.prototype.toLocaleString = function(locales, options) {
+      var loc = Array.isArray(locales) ? locales[0] : locales;
+      if (!loc || String(loc).toLowerCase().indexOf('ar') === 0) {
+        return o.call(this, 'en-US', options);
+      }
+      return o.call(this, locales, options);
+    };
+  } catch (e) {}
+})();
+`,
+          }}
+        />
+        <link rel="icon" href="/icons/icon-192.png" type="image/jpeg" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@300;400;500;700&family=Amiri:ital@0;1&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
         <link
@@ -32,7 +70,12 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <SessionRestorer />
+        <ThemeToggle />
+        {children}
+        <InstallMawiza />
+      </body>
     </html>
   )
 }
